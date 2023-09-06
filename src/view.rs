@@ -215,6 +215,52 @@ pub trait View: Sized {
     {
         Transpose(self, PhantomData)
     }
+
+    /// Returns a `View` whose `at(j)` returns `self.at(i, j)`.
+    ///
+    /// ```
+    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
+    /// assert_eq!(a.as_ref(), [
+    ///     (0, 0), (0, 1),
+    ///     (1, 0), (1, 1),
+    ///     (2, 0), (2, 1),
+    /// ]);
+    /// let a_row: Array<_, _> = a.row::<usize, usize>(1).collect();
+    /// assert_eq!(a_row.as_ref(), [
+    ///     (1, 0), (1, 1),
+    /// ]);
+    /// ```
+    fn row<I: ArrayIndex, J: ArrayIndex>(self, i: I) -> Row<Self, I, J> where
+        (I, J): Isomorphic<Self::I>,
+        (I::Size, J::Size): Isomorphic<<Self::I as ArrayIndex>::Size>,
+    {
+        Row(self, i, PhantomData)
+    }
+
+    /// Returns a `View` whose `at(i)` returns `self.at(i, j)`.
+    ///
+    /// ```
+    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
+    /// assert_eq!(a.as_ref(), [
+    ///     (0, 0), (0, 1),
+    ///     (1, 0), (1, 1),
+    ///     (2, 0), (2, 1),
+    /// ]);
+    /// let a_column: Array<_, _> = a.column::<usize, usize>(1).collect();
+    /// assert_eq!(a_column.as_ref(), [
+    ///     (0, 1), (1, 1), (2, 1),
+    /// ]);
+    /// ```
+    fn column<I: ArrayIndex, J: ArrayIndex>(self, j: J) -> Column<Self, I, J> where
+        (I, J): Isomorphic<Self::I>,
+        (I::Size, J::Size): Isomorphic<<Self::I as ArrayIndex>::Size>,
+        (J, I): Flatten,
+        (J::Size, I::Size): Flatten,
+    {
+        self.transpose::<(), J, I, ()>().row(j)
+    }
 }
 
 impl<V: View, T: Deref<Target=V>> View for T {
@@ -353,6 +399,27 @@ impl<
         self.0.at((i, (y, x), j).to_iso())
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::row()`].
+#[derive(Debug, Copy, Clone)]
+pub struct Row<V, I, J>(V, I, PhantomData<J>);
+
+impl<V: View, I: ArrayIndex, J: ArrayIndex> View for Row<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as ArrayIndex>::Size>,
+{
+    type I = J;
+    type T = V::T;
+    fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
+    fn at(&self, index: J) -> Self::T { self.0.at((self.1, index).to_iso()) }
+}
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::column()`]
+type Column<V, I, J> = Row<Transpose<V, (), J, I, ()>, J, I>;
 
 // ----------------------------------------------------------------------------
 
