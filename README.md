@@ -20,7 +20,7 @@ and a safe, modular way of writing new operations if necessary.
 
 [BLAS]: https://www.netlib.org/blas/
 [NumPy]: https://numpy.org/
-[std::iter]: https://doc.rust-lang.org/std/iter/index.html
+[`std::iter`]: https://doc.rust-lang.org/std/iter/index.html
 
 ## Examples
 
