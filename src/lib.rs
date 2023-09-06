@@ -30,7 +30,7 @@
 //! be optimized away by the compiler.
 
 mod index;
-pub use index::{ArrayIndex, StaticIndex};
+pub use index::{ArrayIndex, StaticIndex, All};
 
 pub mod tuple;
 pub use tuple::{NonTuple, Flatten, Isomorphic};
