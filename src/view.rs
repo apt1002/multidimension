@@ -4,15 +4,35 @@ use std::ops::{Deref};
 use super::{ArrayIndex, Isomorphic, Flatten, Broadcast};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
-/// `Self::I`, but the array elements are computed, so you can't borrow them.
+/// `Self::I`, but whose array elements are computed on demand.
+///
+/// ### Ownership
 ///
 /// If `V` implements `View`, then so do `&V`, `Box<V>`, `Rc<V>` and all other
-/// types that [`Deref`] to `V`.
+/// types that [`Deref`] to `V`. This means that the `View` structures you can
+/// build are agnostic about the ownership of the data they access.
 ///
 /// ```
 /// use multidimension::{View, FromView, Array, ArrayIndex};
 /// let a: Array<_, _> = std::rc::Rc::new(usize::all(5)).collect();
 /// assert_eq!(a.as_ref(), [0, 1, 2, 3, 4]);
+/// ```
+///
+/// If you implement a `View` that draws data from another `View`, it should
+/// own the other view, as this is the most general design.
+///
+/// ```
+/// use multidimension::{View, FromView, Array, ArrayIndex};
+/// /// `MyView` owns a `V`.
+/// struct MyView<V>(V);
+/// impl<V: View> View for MyView<V> {
+///     type I = V::I;
+///     type T = V::T;
+///     fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0.size() }
+///     fn at(&self, index: Self::I) -> Self::T { self.0.at(index) }
+/// }
+/// /// MyView can nonetheless borrow a `V`.
+/// fn my_borrow<V: View>(v: &V) -> MyView<&V> { MyView(v) }
 /// ```
 
 pub trait View: Sized {

@@ -4,7 +4,16 @@ use super::{Flatten};
 
 /// Implemented by types that can be used as an index for an [`Array`].
 ///
+/// You are encouraged to write new `ArrayIndex` types. If [`ArrayIndex::Size`]
+/// is a compile-time constant, you can save some effort by implementing
+/// [`StaticIndex`] instead.
+///
+/// All types that implement `ArrayIndex` must implement [`Flatten`]. The
+/// simplest way to achieve this for a non-tuple type is to implement
+/// [`NonTuple`].
+///
 /// [`Array`]: super::Array
+/// [`NonTuple`]: super::NonTuple
 pub trait ArrayIndex: Copy + Flatten {
     /// The run-time representation of the size of an `Array<Self, T>`.
     ///

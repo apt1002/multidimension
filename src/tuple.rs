@@ -11,14 +11,35 @@
 //! trait [`Isomorphic<T>`].
 //!
 //! To be contained in a [`Flat`] type, a type must implement trait
-//! [`NonTuple`].
+//! [`NonTuple`]. If you want a type to play the tuple isomorphism game, it
+//! should probably implement `NonTuple`. If you want a type to behave like a
+//! tuple for the purposes of tuple isomorphism, you should consider just using
+//! a tuple instead.
 
 /// Implemented by [`Flatten`] types that have no tuple-like structure.
+///
+/// A type that implements `NonTuple` will automatically get implementations of
+/// `Flatten` and `Isomorphic`, as will tuple types that contain it.
 pub trait NonTuple: Sized {}
 
 impl NonTuple for bool {}
+impl NonTuple for char {}
 
+impl NonTuple for i8 {}
+impl NonTuple for i16 {}
+impl NonTuple for i32 {}
+impl NonTuple for i64 {}
+impl NonTuple for i128 {}
+impl NonTuple for isize {}
+
+impl NonTuple for u8 {}
+impl NonTuple for u16 {}
+impl NonTuple for u32 {}
+impl NonTuple for u64 {}
+impl NonTuple for u128 {}
 impl NonTuple for usize {}
+
+impl<T: NonTuple> NonTuple for Option<T> {}
 
 // ----------------------------------------------------------------------------
 
@@ -32,6 +53,10 @@ impl<A: Flat, B: NonTuple> Flat for (A, B) {}
 // ----------------------------------------------------------------------------
 
 /// Convert a tuple-tree to/from a canonical form.
+///
+/// You probably shouldn't write any more implementations of this trait. If you
+/// want a type to implement `Flatten`, it should probably just implement
+/// `NonTuple`, and take advantage of the blanket implementations.
 pub trait Flatten<F: Flat=()>: Sized {
     type Flat: Flat;
 
@@ -113,7 +138,9 @@ impl<F: Flat,
 
 /* This is unfortunately not possible.
  * https://github.com/rust-lang/rust/issues/108185
-
+ *
+ * Where we would like to write `T: Flattenable`, we instead write `T: Flatten`
+ * and add `where` clauses to cope with the fallout.
 trait Flattenable: for<F: Flat> Flatten<F> {}
 
 impl<T: for<F: Flat> Flatten<F>> Flattenable for T {}
