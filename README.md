@@ -18,6 +18,10 @@ are encouraged to make type distinctions among array indices.
  - The library provides a high-level way of expressing many common operations,
 and a safe, modular way of writing new operations if necessary.
 
+[BLAS]: https://www.netlib.org/blas/
+[NumPy]: https://numpy.org/
+[std::iter]: https://doc.rust-lang.org/std/iter/index.html
+
 ## Examples
 
 ```

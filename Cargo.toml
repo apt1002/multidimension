@@ -5,9 +5,11 @@ authors = ["Alistair Turnbull"]
 edition = "2021"
 rust-version = "1.71.1"
 description = "High-level manipulation of multi-dimensional arrays."
+homepage = "https://github.com/apt1002/multidimension"
 repository = "https://github.com/apt1002/multidimension"
 license-file = "LICENSE"
 keywords = ["multi-dimensional", "arrays"]
+categories = ["algorithms", "data-structures", "mathematics", "science"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
