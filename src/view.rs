@@ -423,6 +423,19 @@ type Column<V, I, J> = Row<Transpose<V, (), J, I, ()>, J, I>;
 
 // ----------------------------------------------------------------------------
 
+/// A 0-dimensional [`View`].
+#[derive(Debug, Copy, Clone)]
+pub struct Scalar<T: Clone>(T);
+
+impl<T: Clone> View for Scalar<T> {
+    type I = ();
+    type T = T;
+    fn size(&self) -> () { () }
+    fn at(&self, _: ()) -> T { self.0.clone() }
+}
+
+// ----------------------------------------------------------------------------
+
 /// Construct a collection from a `View`.
 pub trait FromView<I: ArrayIndex, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self;

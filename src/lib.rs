@@ -41,7 +41,7 @@ pub use index::{ArrayIndex, StaticIndex, All};
 pub mod int;
 
 pub mod view;
-pub use view::{View, FromView};
+pub use view::{View, Scalar, FromView};
 
 mod array;
 pub use array::{Array};
