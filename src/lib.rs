@@ -29,14 +29,16 @@
 //! indices is all automatically generated at compile-time, and should mostly
 //! be optimized away by the compiler.
 
-mod index;
-pub use index::{ArrayIndex, StaticIndex, All};
-
 pub mod tuple;
 pub use tuple::{NonTuple, Flatten, Isomorphic};
 
 mod broadcast;
 pub use broadcast::{Broadcast};
+
+mod index;
+pub use index::{ArrayIndex, StaticIndex, All};
+
+pub mod int;
 
 pub mod view;
 pub use view::{View, FromView};

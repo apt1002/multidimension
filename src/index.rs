@@ -37,21 +37,6 @@ pub trait ArrayIndex: Copy + Flatten {
     fn all(size: Self::Size) -> All<Self> { All(size) }
 }
 
-impl ArrayIndex for usize {
-    type Size = usize;
-
-    fn length(size: Self::Size) -> usize { size }
-
-    fn as_usize(self, size: Self::Size) -> usize {
-        assert!(self < size, "Index {} is out of bounds for size {}", self, size);
-        self
-    }
-
-    fn each(size: Self::Size, mut f: impl FnMut(Self)) {
-        for i in 0..size { f(i); }
-    }
-}
-
 impl<I: ArrayIndex> ArrayIndex for (I,) where
     (I,): Flatten,
     (I::Size,): Flatten,
