@@ -45,6 +45,9 @@ pub trait View: Sized {
     /// The size of the array.
     fn size(&self) -> <Self::I as Index>::Size;
 
+    /// The number of elements in `Self`.
+    fn len(&self) -> usize { <Self::I as Index>::length(self.size()) }
+
     /// Compute the element at `index`.
     fn at(&self, index: Self::I) -> Self::T;
 

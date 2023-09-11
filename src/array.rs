@@ -43,17 +43,6 @@ impl<I: Index, T> Array<I, T> {
         Self {size, items: items.into()}
     }
 
-    /// The run-time representation of the size of `Self`.
-    ///
-    /// Use `self.len()` to obtain the number of elements in `Self`.
-    pub fn size(&self) -> I::Size { self.size }
-
-    /// The number of elements in `Self`.
-    pub fn len(&self) -> usize { self.as_ref().len() }
-
-    /// Converts `index` to a `usize`.
-    pub fn index(&self, index: I) -> usize { index.as_usize(self.size) }
-
     /// Change the index type of this array without moving any of the items.
     pub fn iso<J: Index>(self) -> Array<J, T> where
         J: Isomorphic<I>,
@@ -78,20 +67,21 @@ impl<I: Index, T> std::ops::Index<I> for Array<I, T> {
     type Output = T;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.items[self.index(index)]
+        &self.items[index.as_usize(self.size)]
     }
 }
 
 impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.items[self.index(index)]
+        &mut self.items[index.as_usize(self.size)]
     }
 }
 
 impl<I: Index, T: Clone> View for Array<I, T> {
     type I = I;
     type T = T;
-    fn size(&self) -> I::Size { Array::size(self) }
+    fn size(&self) -> I::Size { self.size }
+    fn len(&self) -> usize { self.as_ref().len() }
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
