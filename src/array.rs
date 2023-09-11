@@ -1,17 +1,17 @@
-use super::{Isomorphic, ArrayIndex, View};
+use super::{Isomorphic, Index, View};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
-pub struct Array<I: ArrayIndex, T> {
+pub struct Array<I: Index, T> {
     size: I::Size,
     items: Box<[T]>,
 }
 
-impl<I: ArrayIndex, T> Array<I, T> {
+impl<I: Index, T> Array<I, T> {
     /// Constructs an `Array` of size `size` given its elements.
     ///
     /// ```
-    /// use multidimension::{ArrayIndex, Array};
+    /// use multidimension::{Index, Array};
     /// let a: Array<(usize, bool), f32> = Array::new((3, ()), [0.0, 1.0, -1.0, 2.0, 3.0, -2.0]);
     /// assert_eq!(a[(0, false)], 0.0);
     /// assert_eq!(a[(0, true)], 1.0);
@@ -29,7 +29,7 @@ impl<I: ArrayIndex, T> Array<I, T> {
     /// Construct an `Array` of size `size` from a function.
     ///
     /// ```
-    /// use multidimension::{ArrayIndex, Array};
+    /// use multidimension::{Index, Array};
     /// let a: Array<usize, _> = Array::from_fn(10, |x| x % 3 == 0);
     /// assert_eq!(a.as_ref(), [true, false, false, true, false, false, true, false, false, true]);
     /// ```
@@ -55,9 +55,9 @@ impl<I: ArrayIndex, T> Array<I, T> {
     pub fn index(&self, index: I) -> usize { index.as_usize(self.size) }
 
     /// Change the index type of this array without moving any of the items.
-    pub fn iso<J: ArrayIndex>(self) -> Array<J, T> where
+    pub fn iso<J: Index>(self) -> Array<J, T> where
         J: Isomorphic<I>,
-        J::Size: Isomorphic<<I as ArrayIndex>::Size>,
+        J::Size: Isomorphic<<I as Index>::Size>,
     {
         Array {size: J::Size::from_iso(self.size), items: self.items}
     }
@@ -66,15 +66,15 @@ impl<I: ArrayIndex, T> Array<I, T> {
     pub fn view(&self) -> ArrayView<I, T> { ArrayView(self) }
 }
 
-impl<I: ArrayIndex, T> std::convert::AsRef<[T]> for Array<I, T> {
+impl<I: Index, T> std::convert::AsRef<[T]> for Array<I, T> {
     fn as_ref(&self) -> &[T] { &self.items }
 }
 
-impl<I: ArrayIndex, T> std::convert::AsMut<[T]> for Array<I, T> {
+impl<I: Index, T> std::convert::AsMut<[T]> for Array<I, T> {
     fn as_mut(&mut self) -> &mut [T] { &mut self.items }
 }
 
-impl<I: ArrayIndex, T> std::ops::Index<I> for Array<I, T> {
+impl<I: Index, T> std::ops::Index<I> for Array<I, T> {
     type Output = T;
 
     fn index(&self, index: I) -> &Self::Output {
@@ -82,20 +82,20 @@ impl<I: ArrayIndex, T> std::ops::Index<I> for Array<I, T> {
     }
 }
 
-impl<I: ArrayIndex, T> std::ops::IndexMut<I> for Array<I, T> {
+impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.items[self.index(index)]
     }
 }
 
-impl<I: ArrayIndex, T: Clone> View for Array<I, T> {
+impl<I: Index, T: Clone> View for Array<I, T> {
     type I = I;
     type T = T;
     fn size(&self) -> I::Size { Array::size(self) }
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
-impl<I: ArrayIndex, T> super::FromView<I, T> for Array<I, T> {
+impl<I: Index, T> super::FromView<I, T> for Array<I, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self {
         Self::from_fn(v.size(), |i| v.at(i))
     }
@@ -103,9 +103,9 @@ impl<I: ArrayIndex, T> super::FromView<I, T> for Array<I, T> {
 
 // ----------------------------------------------------------------------------
 
-pub struct ArrayView<'a, I: ArrayIndex, T>(&'a Array<I, T>);
+pub struct ArrayView<'a, I: Index, T>(&'a Array<I, T>);
 
-impl<'a, I: ArrayIndex, T: Clone> View for ArrayView<'a, I, T> {
+impl<'a, I: Index, T: Clone> View for ArrayView<'a, I, T> {
     type I = I;
     type T = &'a T;
     fn size(&self) -> I::Size { self.0.size() }

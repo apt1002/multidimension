@@ -1,7 +1,7 @@
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{ArrayIndex, Isomorphic, Flatten, Broadcast};
+use super::{Index, Isomorphic, Flatten, Broadcast};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
@@ -13,7 +13,7 @@ use super::{ArrayIndex, Isomorphic, Flatten, Broadcast};
 /// build are agnostic about the ownership of the data they access.
 ///
 /// ```
-/// use multidimension::{View, FromView, Array, ArrayIndex};
+/// use multidimension::{Index, View, Array};
 /// let a: Array<_, _> = std::rc::Rc::new(usize::all(5)).collect();
 /// assert_eq!(a.as_ref(), [0, 1, 2, 3, 4]);
 /// ```
@@ -22,13 +22,13 @@ use super::{ArrayIndex, Isomorphic, Flatten, Broadcast};
 /// own the other view, as this is the most general design.
 ///
 /// ```
-/// use multidimension::{View, FromView, Array, ArrayIndex};
+/// use multidimension::{Index, View};
 /// /// `MyView` owns a `V`.
 /// struct MyView<V>(V);
 /// impl<V: View> View for MyView<V> {
 ///     type I = V::I;
 ///     type T = V::T;
-///     fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0.size() }
+///     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
 ///     fn at(&self, index: Self::I) -> Self::T { self.0.at(index) }
 /// }
 /// /// MyView can nonetheless borrow a `V`.
@@ -37,13 +37,13 @@ use super::{ArrayIndex, Isomorphic, Flatten, Broadcast};
 
 pub trait View: Sized {
     /// The index type.
-    type I: ArrayIndex;
+    type I: Index;
 
     /// The element type.
     type T;
 
     /// The size of the array.
-    fn size(&self) -> <Self::I as ArrayIndex>::Size;
+    fn size(&self) -> <Self::I as Index>::Size;
 
     /// Compute the element at `index`.
     fn at(&self, index: Self::I) -> Self::T;
@@ -52,7 +52,7 @@ pub trait View: Sized {
     /// [`Array`].
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = usize::all(5).collect();
     /// assert_eq!(a.as_ref(), [0, 1, 2, 3, 4]);
     /// ```
@@ -77,7 +77,7 @@ pub trait View: Sized {
     /// It maps `(i, j)` to `T::default()` if `i != t`.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = usize::all(3).map(|x| x + 10).diagonal().collect();
     /// assert_eq!(a.as_ref(), [
     ///     10, 0, 0,
@@ -98,7 +98,7 @@ pub trait View: Sized {
     /// particular order, only once, or at all.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = usize::all(5).map(|x| x*x).collect();
     /// assert_eq!(a.as_ref(), [0, 1, 4, 9, 16]);
     /// ```
@@ -111,7 +111,7 @@ pub trait View: Sized {
     /// Creates a `View` that uses `self` to select elements of `other`.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<bool, usize> = Array::new((), [2, 1]);
     /// let b: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
     /// let ab: Array<bool, &str> = a.compose(b).collect();
@@ -135,7 +135,7 @@ pub trait View: Sized {
     ///
     /// Here's an example of zipping two 1D [`Array`]s of the same size:
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<usize, usize> = usize::all(3).collect();
     /// let b: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
     /// let ab: Array<usize, (usize, &str)> = a.zip(b).collect();
@@ -148,7 +148,7 @@ pub trait View: Sized {
     ///
     /// Here's an example of zipping a 1D [`Array`] with a scalar:
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<usize, usize> = usize::all(3).collect();
     /// let b: Array<(), &str> = Array::new((), ["repeated"]);
     /// let ab: Array<usize, (usize, &str)> = a.zip(b).collect();
@@ -161,7 +161,7 @@ pub trait View: Sized {
     /// 
     /// Here's an example of zipping two 2D [`Array`]s of different shape:
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<(usize, ()), usize> = usize::all(3).iso().collect();
     /// let b: Array<((), bool), bool> = bool::all(()).iso().collect();
     /// let ab: Array<(usize, bool), (usize, bool)> = a.zip(b).collect();
@@ -181,9 +181,9 @@ pub trait View: Sized {
     }
 
     /// Change the index type of this `View` to an [`Isomorphic`] type.
-    fn iso<J: ArrayIndex>(self) -> Iso<Self, J> where
+    fn iso<J: Index>(self) -> Iso<Self, J> where
         J: Isomorphic<Self::I>,
-        J::Size: Isomorphic<<Self::I as ArrayIndex>::Size>,
+        J::Size: Isomorphic<<Self::I as Index>::Size>,
     {
         Iso(self, PhantomData)
     }
@@ -195,7 +195,7 @@ pub trait View: Sized {
     /// Note that `I` and/or `J` can be `()` if they are unwanted.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
     /// assert_eq!(a.as_ref(), [
     ///     (0, 0), (0, 1),
@@ -208,10 +208,10 @@ pub trait View: Sized {
     ///     (0, 1), (1, 1), (2, 1),
     /// ]);
     /// ```
-    fn transpose<I: ArrayIndex, X: ArrayIndex, Y: ArrayIndex, J: ArrayIndex>(self)
+    fn transpose<I: Index, X: Index, Y: Index, J: Index>(self)
     -> Transpose<Self, I, X, Y, J> where
         (I, (Y, X), J): Isomorphic<Self::I>,
-        (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<Self::I as ArrayIndex>::Size>,
+        (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<Self::I as Index>::Size>,
     {
         Transpose(self, PhantomData)
     }
@@ -219,7 +219,7 @@ pub trait View: Sized {
     /// Returns a `View` whose `at(j)` returns `self.at(i, j)`.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
     /// assert_eq!(a.as_ref(), [
     ///     (0, 0), (0, 1),
@@ -231,9 +231,9 @@ pub trait View: Sized {
     ///     (1, 0), (1, 1),
     /// ]);
     /// ```
-    fn row<I: ArrayIndex, J: ArrayIndex>(self, i: I) -> Row<Self, I, J> where
+    fn row<I: Index, J: Index>(self, i: I) -> Row<Self, I, J> where
         (I, J): Isomorphic<Self::I>,
-        (I::Size, J::Size): Isomorphic<<Self::I as ArrayIndex>::Size>,
+        (I::Size, J::Size): Isomorphic<<Self::I as Index>::Size>,
     {
         Row(self, i, PhantomData)
     }
@@ -241,7 +241,7 @@ pub trait View: Sized {
     /// Returns a `View` whose `at(i)` returns `self.at(i, j)`.
     ///
     /// ```
-    /// use multidimension::{View, FromView, Array, ArrayIndex};
+    /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
     /// assert_eq!(a.as_ref(), [
     ///     (0, 0), (0, 1),
@@ -253,9 +253,9 @@ pub trait View: Sized {
     ///     (0, 1), (1, 1), (2, 1),
     /// ]);
     /// ```
-    fn column<I: ArrayIndex, J: ArrayIndex>(self, j: J) -> Column<Self, I, J> where
+    fn column<I: Index, J: Index>(self, j: J) -> Column<Self, I, J> where
         (I, J): Isomorphic<Self::I>,
-        (I::Size, J::Size): Isomorphic<<Self::I as ArrayIndex>::Size>,
+        (I::Size, J::Size): Isomorphic<<Self::I as Index>::Size>,
         (J, I): Flatten,
         (J::Size, I::Size): Flatten,
     {
@@ -266,7 +266,7 @@ pub trait View: Sized {
 impl<V: View, T: Deref<Target=V>> View for T {
     type I = V::I;
     type T = V::T;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { V::size(self) }
+    fn size(&self) -> <Self::I as Index>::Size { V::size(self) }
     fn at(&self, index: Self::I) -> Self::T { V::at(self, index) }
 }
 
@@ -279,7 +279,7 @@ pub struct Cloned<V>(V);
 impl<'t, T: 't + Clone, V: View<T=&'t T>> View for Cloned<V> {
     type I = V::I;
     type T = T;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0.size() }
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
     fn at(&self, index: Self::I) -> Self::T { self.0.at(index).clone() }
 }
 // ----------------------------------------------------------------------------
@@ -292,11 +292,11 @@ impl<V: View> View for Diagonal<V> where
     V::I: PartialEq,
     V::T: Default,
     (V::I, V::I): Flatten,
-    (<V::I as ArrayIndex>::Size, <V::I as ArrayIndex>::Size): Flatten,
+    (<V::I as Index>::Size, <V::I as Index>::Size): Flatten,
 {
     type I = (V::I, V::I);
     type T = V::T;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { (self.0.size(), self.0.size()) }
+    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), self.0.size()) }
     fn at(&self, index: Self::I) -> Self::T {
         if index.0 == index.1 { self.0.at(index.0) } else { Default::default() }
     }
@@ -311,7 +311,7 @@ pub struct Map<V, F>(V, F);
 impl<V: View, U, F: Fn(V::T) -> U> View for Map<V, F> {
     type I = V::I;
     type T = U;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0.size() }
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
     fn at(&self, index: Self::I) -> Self::T { self.1(self.0.at(index)) }
 }
 
@@ -324,7 +324,7 @@ pub struct Compose<V, W>(V, W);
 impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
     type I = V::I;
     type T = W::T;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0.size() }
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
     fn at(&self, index: Self::I) -> Self::T { self.1.at(self.0.at(index)) }
 }
 
@@ -340,7 +340,7 @@ impl<V: View, W: View> View for Zip<V, W> where
     type I = <V::I as Broadcast<W::I>>::Result;
     type T = (V::T, W::T);
 
-    fn size(&self) -> <Self::I as ArrayIndex>::Size {
+    fn size(&self) -> <Self::I as Index>::Size {
         <V::I as Broadcast<W::I>>::size(self.0.size(), self.1.size())
     }
 
@@ -354,11 +354,11 @@ impl<V: View, W: View> View for Zip<V, W> where
 
 /// The return type of [`View::iso()`].
 #[derive(Debug, Copy, Clone)]
-pub struct Iso<V, J: ArrayIndex>(V, PhantomData<J>);
+pub struct Iso<V, J: Index>(V, PhantomData<J>);
 
-impl<V: View, J: ArrayIndex> View for Iso<V, J> where
+impl<V: View, J: Index> View for Iso<V, J> where
     J: Isomorphic<V::I>,
-    J::Size: Isomorphic<<V::I as ArrayIndex>::Size>,
+    J::Size: Isomorphic<<V::I as Index>::Size>,
 {
     type I = J;
     type T = V::T;
@@ -372,15 +372,9 @@ impl<V: View, J: ArrayIndex> View for Iso<V, J> where
 #[derive(Debug, Copy, Clone)]
 pub struct Transpose<V, I, X, Y, J>(V, PhantomData<(I, (X, Y), J)>);
 
-impl<
-    V: View,
-    I: ArrayIndex,
-    X: ArrayIndex,
-    Y: ArrayIndex,
-    J: ArrayIndex,
-> View for Transpose<V, I, X, Y, J> where
+impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X, Y, J> where
     (I, (Y, X), J): Isomorphic<V::I>,
-    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as ArrayIndex>::Size>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
     (X, Y): Flatten,
     (I, (X, Y), J): Flatten,
     (X::Size, Y::Size): Flatten,
@@ -406,9 +400,9 @@ impl<
 #[derive(Debug, Copy, Clone)]
 pub struct Row<V, I, J>(V, I, PhantomData<J>);
 
-impl<V: View, I: ArrayIndex, J: ArrayIndex> View for Row<V, I, J> where
+impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as ArrayIndex>::Size>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
 {
     type I = J;
     type T = V::T;
@@ -437,6 +431,6 @@ impl<T: Clone> View for Scalar<T> {
 // ----------------------------------------------------------------------------
 
 /// Construct a collection from a `View`.
-pub trait FromView<I: ArrayIndex, T> {
+pub trait FromView<I: Index, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self;
 }

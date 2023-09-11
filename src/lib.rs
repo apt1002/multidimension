@@ -32,11 +32,11 @@
 pub mod tuple;
 pub use tuple::{NonTuple, Flatten, Isomorphic};
 
+mod index;
+pub use index::{Index, StaticIndex, All};
+
 mod broadcast;
 pub use broadcast::{Broadcast};
-
-mod index;
-pub use index::{ArrayIndex, StaticIndex, All};
 
 pub mod int;
 

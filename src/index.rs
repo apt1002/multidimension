@@ -4,17 +4,17 @@ use super::{Flatten};
 
 /// Implemented by types that can be used as an index for an [`Array`].
 ///
-/// You are encouraged to write new `ArrayIndex` types. If [`ArrayIndex::Size`]
+/// You are encouraged to write new `Index` types. If [`Index::Size`]
 /// is a compile-time constant, you can save some effort by implementing
 /// [`StaticIndex`] instead.
 ///
-/// All types that implement `ArrayIndex` must implement [`Flatten`]. The
+/// All types that implement `Index` must implement [`Flatten`]. The
 /// simplest way to achieve this for a non-tuple type is to implement
 /// [`NonTuple`].
 ///
 /// [`Array`]: super::Array
 /// [`NonTuple`]: super::NonTuple
-pub trait ArrayIndex: Copy + Flatten {
+pub trait Index: Copy + Flatten {
     /// The run-time representation of the size of an `Array<Self, T>`.
     ///
     /// If the size is a compile-time constant, this will implement
@@ -37,7 +37,9 @@ pub trait ArrayIndex: Copy + Flatten {
     fn all(size: Self::Size) -> All<Self> { All(size) }
 }
 
-impl<I: ArrayIndex> ArrayIndex for (I,) where
+// `impl Index for ()` is provided by implementing `StaticIndex`.
+
+impl<I: Index> Index for (I,) where
     (I,): Flatten,
     (I::Size,): Flatten,
 {
@@ -58,7 +60,7 @@ impl<I: ArrayIndex> ArrayIndex for (I,) where
 }
     
 
-impl<I: ArrayIndex, J: ArrayIndex> ArrayIndex for (I, J) where
+impl<I: Index, J: Index> Index for (I, J) where
     (I, J): Flatten,
     (I::Size, J::Size): Flatten,
 {
@@ -79,7 +81,7 @@ impl<I: ArrayIndex, J: ArrayIndex> ArrayIndex for (I, J) where
     }
 }
 
-impl<I: ArrayIndex, J: ArrayIndex, K: ArrayIndex> ArrayIndex for (I, J, K) where
+impl<I: Index, J: Index, K: Index> Index for (I, J, K) where
     (I, J, K): Flatten,
     (I::Size, J::Size, K::Size): Flatten,
 {
@@ -103,14 +105,14 @@ impl<I: ArrayIndex, J: ArrayIndex, K: ArrayIndex> ArrayIndex for (I, J, K) where
 
 // ----------------------------------------------------------------------------
 
-/// The return type of [`ArrayIndex::all()`].
+/// The return type of [`Index::all()`].
 #[derive(Debug, Copy, Clone)]
-pub struct All<I: ArrayIndex>(I::Size);
+pub struct All<I: Index>(I::Size);
 
-impl<I: ArrayIndex> super::View for super::index::All<I> {
+impl<I: Index> super::View for super::index::All<I> {
     type I = I;
     type T = I;
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0 }
+    fn size(&self) -> <Self::I as Index>::Size { self.0 }
     fn at(&self, index: Self::I) -> Self::T { index }
 }
 
@@ -128,7 +130,7 @@ pub trait StaticIndex: 'static + Debug + Copy + PartialEq + Flatten {
     fn as_usize(self) -> usize;
 }
 
-impl<I: StaticIndex> ArrayIndex for I {
+impl<I: StaticIndex> Index for I {
     type Size = ();
 
     fn length((): Self::Size) -> usize { Self::ALL.len() }

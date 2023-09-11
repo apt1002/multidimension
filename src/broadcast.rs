@@ -1,21 +1,21 @@
-use super::{ArrayIndex, NonTuple, Flatten};
+use super::{Index, NonTuple, Flatten};
 
 /// Implemented by `Self` if type `()` can be expanded to type `Self`.
-pub trait Expand: ArrayIndex {}
+pub trait Expand: Index {}
 
-impl<T: ArrayIndex + NonTuple> Expand for T {}
+impl<T: Index + NonTuple> Expand for T {}
 
-impl<A: ArrayIndex> Expand for (A,) where
+impl<A: Index> Expand for (A,) where
     (A,): Flatten,
     (A::Size,): Flatten,
 {}
 
-impl<A: ArrayIndex, B: ArrayIndex> Expand for (A, B) where
+impl<A: Index, B: Index> Expand for (A, B) where
     (A, B): Flatten,
     (A::Size, B::Size): Flatten,
 {}
 
-impl<A: ArrayIndex, B: ArrayIndex, C: ArrayIndex> Expand for (A, B, C) where
+impl<A: Index, B: Index, C: Index> Expand for (A, B, C) where
     (A, B, C): Flatten,
     (A::Size, B::Size, C::Size): Flatten,
 {}
@@ -24,21 +24,21 @@ impl<A: ArrayIndex, B: ArrayIndex, C: ArrayIndex> Expand for (A, B, C) where
 
 /// `Self` implements `Broadcast<Other>` to say what happens when you zip a
 /// `View` indexed by `Self` with one indexed by `Other`.
-pub trait Broadcast<Other: ArrayIndex>: ArrayIndex {
-    /// The Resulting `ArrayIndex` type.
-    type Result: ArrayIndex;
+pub trait Broadcast<Other: Index>: Index {
+    /// The Resulting `Index` type.
+    type Result: Index;
 
     /// The size of `Self::Result`, given the sizes of `Self` and `Other`.
-    fn size(self_size: Self::Size, other_size: Other::Size) -> <Self::Result as ArrayIndex>::Size;
+    fn size(self_size: Self::Size, other_size: Other::Size) -> <Self::Result as Index>::Size;
 
     /// Where each `Self::Result` maps from in `Self` and in `Other`.
     fn index(index: Self::Result) -> (Self, Other);
 }
 
-impl<I: ArrayIndex + NonTuple> Broadcast<I> for I {
+impl<I: Index + NonTuple> Broadcast<I> for I {
     type Result = I;
 
-    fn size(self_size: <I as ArrayIndex>::Size, other_size: <I as ArrayIndex>::Size) -> <I as ArrayIndex>::Size {
+    fn size(self_size: <I as Index>::Size, other_size: <I as Index>::Size) -> <I as Index>::Size {
         if self_size != other_size { panic!("Unequal sizes"); }
         self_size
     }
@@ -59,7 +59,7 @@ impl<I: Expand> Broadcast<()> for I {
 }
 
 impl<
-    IA: ArrayIndex, JA: ArrayIndex,
+    IA: Index, JA: Index,
 > Broadcast<(JA,)> for (IA,) where
     IA: Broadcast<JA>,
 {
@@ -70,7 +70,7 @@ impl<
     fn size(
         i_size: (IA::Size,),
         j_size: (JA::Size,),
-    ) -> <Self::Result as ArrayIndex>::Size {
+    ) -> <Self::Result as Index>::Size {
         (
             <IA as Broadcast<JA>>::size(i_size.0, j_size.0),
         )
@@ -86,8 +86,8 @@ impl<
 }
 
 impl<
-    IA: ArrayIndex, JA: ArrayIndex,
-    IB: ArrayIndex, JB: ArrayIndex,
+    IA: Index, JA: Index,
+    IB: Index, JB: Index,
 > Broadcast<(JA, JB)> for (IA, IB) where
     IA: Broadcast<JA>,
     IB: Broadcast<JB>,
@@ -100,8 +100,8 @@ impl<
         <IB as Broadcast<JB>>::Result,
     ): Flatten,
     (
-        <<IA as Broadcast<JA>>::Result as ArrayIndex>::Size,
-        <<IB as Broadcast<JB>>::Result as ArrayIndex>::Size,
+        <<IA as Broadcast<JA>>::Result as Index>::Size,
+        <<IB as Broadcast<JB>>::Result as Index>::Size,
     ): Flatten,
 {
     type Result = (
@@ -112,7 +112,7 @@ impl<
     fn size(
         i_size: (IA::Size, IB::Size),
         j_size: (JA::Size, JB::Size),
-    ) -> <Self::Result as ArrayIndex>::Size {
+    ) -> <Self::Result as Index>::Size {
         (
             <IA as Broadcast<JA>>::size(i_size.0, j_size.0),
             <IB as Broadcast<JB>>::size(i_size.1, j_size.1),
@@ -130,9 +130,9 @@ impl<
 }
 
 impl<
-    IA: ArrayIndex, JA: ArrayIndex,
-    IB: ArrayIndex, JB: ArrayIndex,
-    IC: ArrayIndex, JC: ArrayIndex,
+    IA: Index, JA: Index,
+    IB: Index, JB: Index,
+    IC: Index, JC: Index,
 > Broadcast<(JA, JB, JC)> for (IA, IB, IC) where
     IA: Broadcast<JA>,
     IB: Broadcast<JB>,
@@ -147,9 +147,9 @@ impl<
         <IC as Broadcast<JC>>::Result,
     ): Flatten,
     (
-        <<IA as Broadcast<JA>>::Result as ArrayIndex>::Size,
-        <<IB as Broadcast<JB>>::Result as ArrayIndex>::Size,
-        <<IC as Broadcast<JC>>::Result as ArrayIndex>::Size,
+        <<IA as Broadcast<JA>>::Result as Index>::Size,
+        <<IB as Broadcast<JB>>::Result as Index>::Size,
+        <<IC as Broadcast<JC>>::Result as Index>::Size,
     ): Flatten,
 {
     type Result = (
@@ -161,7 +161,7 @@ impl<
     fn size(
         i_size: (IA::Size, IB::Size, IC::Size),
         j_size: (JA::Size, JB::Size, JC::Size),
-    ) -> <Self::Result as ArrayIndex>::Size {
+    ) -> <Self::Result as Index>::Size {
         (
             <IA as Broadcast<JA>>::size(i_size.0, j_size.0),
             <IB as Broadcast<JB>>::size(i_size.1, j_size.1),

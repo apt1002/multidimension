@@ -1,10 +1,10 @@
-//! A variety of [`ArrayIndex`]es and [`View`]s based on `usize`.
+//! A variety of [`Index`]es and [`View`]s based on `usize`.
 //!
-//! `usize` itself implements `ArrayIndex`.
+//! `usize` itself implements `Index`.
 
-use super::{NonTuple, ArrayIndex, View};
+use super::{NonTuple, Index, View};
 
-impl ArrayIndex for usize {
+impl Index for usize {
     type Size = usize;
 
     fn length(size: Self::Size) -> usize { size }
@@ -21,15 +21,15 @@ impl ArrayIndex for usize {
 
 // ----------------------------------------------------------------------------
 
-/// An `I`-like [`ArrayIndex`] with a compile-time constant size.
+/// An `I`-like [`Index`] with a compile-time constant size.
 ///
-/// This wrapper can be applied to any `ArrayIndex` whose `Size` is a `usize`.
+/// This wrapper can be applied to any `Index` whose `Size` is a `usize`.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Fixed<I, const SIZE: usize>(pub I);
 
 impl<I, const SIZE: usize> NonTuple for Fixed<I, SIZE> {}
 
-impl<I: ArrayIndex<Size=usize>, const SIZE: usize> ArrayIndex for Fixed<I, SIZE> {
+impl<I: Index<Size=usize>, const SIZE: usize> Index for Fixed<I, SIZE> {
     type Size = ();
     fn length(_: ()) -> usize { I::length(SIZE) }
     fn as_usize(self, _: ()) -> usize { self.0.as_usize(SIZE) }
@@ -38,13 +38,13 @@ impl<I: ArrayIndex<Size=usize>, const SIZE: usize> ArrayIndex for Fixed<I, SIZE>
 
 // ----------------------------------------------------------------------------
 
-/// A `usize`-like [`ArrayIndex`] that counts backwards.
+/// A `usize`-like [`Index`] that counts backwards.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Reversed(pub usize);
 
 impl NonTuple for Reversed {}
 
-impl ArrayIndex for Reversed {
+impl Index for Reversed {
     type Size = usize;
 
     fn length(size: Self::Size) -> usize { size }
@@ -63,13 +63,13 @@ impl ArrayIndex for Reversed {
 
 /// A [`View`] that maps each `index` to `(index / B, Fixed(index % B))`.
 ///
-/// The inverse map is `<Self::T as ArrayIndex>::as_usize`.
+/// The inverse map is `<Self::T as Index>::as_usize`.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct DivMod<const B: usize>(usize);
 
 impl<const B: usize> View for DivMod<B> {
     type I = usize;
     type T = (usize, Fixed<usize, B>);
-    fn size(&self) -> <Self::I as ArrayIndex>::Size { self.0 * B }
+    fn size(&self) -> <Self::I as Index>::Size { self.0 * B }
     fn at(&self, index: Self::I) -> Self::T { (index / B, Fixed(index % B)) }
 }
