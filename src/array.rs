@@ -1,4 +1,4 @@
-use super::{Isomorphic, Index, View};
+use super::{Isomorphic, Size, Index, View};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -39,7 +39,7 @@ impl<I: Index, T> Array<I, T> {
     ) -> Self {
         let size = size.to_iso();
         let mut items = Vec::with_capacity(I::length(size));
-        I::each(size, |i| items.push(f(i)));
+        size.each(|i| items.push(f(i)));
         Self {size, items: items.into()}
     }
 

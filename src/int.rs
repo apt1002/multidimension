@@ -2,7 +2,7 @@
 //!
 //! `usize` itself implements `Index`.
 
-use super::{div_mod, NonTuple, Index, View};
+use super::{div_mod, NonTuple, Size, Index, View};
 
 impl Index for usize {
     type Size = usize;
@@ -43,7 +43,7 @@ impl<I: Index<Size=usize>, const SIZE: usize> Index for Fixed<I, SIZE> {
         (index, Fixed(i))
     }
 
-    fn each(_: (), mut f: impl FnMut(Self)) { I::each(SIZE, |i| f(Fixed(i))) }
+    fn each(_: (), mut f: impl FnMut(Self)) { SIZE.each(|i| f(Fixed(i))) }
 }
 
 // ----------------------------------------------------------------------------

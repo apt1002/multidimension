@@ -36,7 +36,7 @@ pub mod tuple;
 pub use tuple::{NonTuple, Flatten, Isomorphic};
 
 mod index;
-pub use index::{Index, StaticIndex, All};
+pub use index::{Size, Index, StaticIndex, All};
 
 mod broadcast;
 pub use broadcast::{Broadcast};

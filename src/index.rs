@@ -2,6 +2,21 @@ use std::fmt::{Debug};
 
 use super::{div_mod, Flatten};
 
+/// The run-time size of an array axis. An array axis with a compile-time
+/// constant size can simply use `()`, which implements this trait.
+pub trait Size: Copy + PartialEq {
+    /// An abbreviation for `I::each(self, f)`.
+    fn each<I: Index<Size=Self>>(self, f: impl FnMut(I)) { I::each(self, f); }
+}
+
+impl Size for usize {}
+impl Size for () {}
+impl<A: Size> Size for (A,) {}
+impl<A: Size, B: Size> Size for (A, B) {}
+impl<A: Size, B: Size, C: Size> Size for (A, B, C) {}
+
+// ----------------------------------------------------------------------------
+
 /// Implemented by types that can be used as an index for an [`Array`].
 ///
 /// You are encouraged to write new `Index` types. If [`Index::Size`]
@@ -19,7 +34,7 @@ pub trait Index: Copy + Flatten {
     ///
     /// If the size is a compile-time constant, this will implement
     /// [`Isomorphic<()>`].
-    type Size: Copy + PartialEq + Flatten;
+    type Size: Size + Flatten;
 
     /// Returns the number of `T`s in an `Array<Self, T>`.
     fn length(size: Self::Size) -> usize;
@@ -69,7 +84,7 @@ impl<I: Index> Index for (I,) where
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
-        I::each(size.0, |i| f((i,)));
+        size.0.each(|i| f((i,)));
     }
 }    
 
@@ -97,7 +112,7 @@ impl<I: Index, J: Index> Index for (I, J) where
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
-        I::each(size.0, |i| J::each(size.1, |j| f((i, j))));
+        size.0.each(|i| size.1.each(|j| f((i, j))));
     }
 }
 
@@ -127,7 +142,7 @@ impl<I: Index, J: Index, K: Index> Index for (I, J, K) where
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
-        I::each(size.0, |i| J::each(size.1, |j| K::each(size.2, |k| f((i, j, k)))));
+        size.0.each(|i| size.1.each(|j| size.2.each(|k| f((i, j, k)))));
     }
 }
 
