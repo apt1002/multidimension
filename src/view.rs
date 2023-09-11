@@ -34,7 +34,6 @@ use super::{Index, Isomorphic, Flatten, Broadcast};
 /// /// MyView can nonetheless borrow a `V`.
 /// fn my_borrow<V: View>(v: &V) -> MyView<&V> { MyView(v) }
 /// ```
-
 pub trait View: Sized {
     /// The index type.
     type I: Index;
