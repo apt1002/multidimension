@@ -29,6 +29,9 @@
 //! indices is all automatically generated at compile-time, and should mostly
 //! be optimized away by the compiler.
 
+#[inline(always)]
+fn div_mod(n: usize, d: usize) -> (usize, usize) { (n / d, n % d) }
+
 pub mod tuple;
 pub use tuple::{NonTuple, Flatten, Isomorphic};
 

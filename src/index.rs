@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 
-use super::{Flatten};
+use super::{div_mod, Flatten};
 
 /// Implemented by types that can be used as an index for an [`Array`].
 ///
@@ -27,11 +27,19 @@ pub trait Index: Copy + Flatten {
     /// Returns the index (in `0..length()`) of `Self`.
     ///
     /// Panics if `Self` is not a valid index into an `Array` of size `size`.
-    fn as_usize(self, size: Self::Size) -> usize;
+    fn to_usize(self, size: Self::Size) -> usize;
 
-    /// For `i` in `0..Self::length(size)`, apply `f` to the `Self` for which
-    /// `as_usize()` returns `i`.
-    fn each(size: Self::Size, f: impl FnMut(Self));
+    /// Returns `index / self.length(size)` and the `Self` for which
+    /// `to_usize()` returns `index % self.length(size)`.
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self);
+
+    /// Equivalent to, but often more efficient than,
+    /// ```text
+    /// for i in 0..Self::length(size) { f(Self::from_usize(size, i).1); }
+    /// ```
+    fn each(size: Self::Size, mut f: impl FnMut(Self)) {
+        for i in 0..Self::length(size) { f(Self::from_usize(size, i).1); }
+    }
 
     /// Returns a View of the specified size that maps every `Self` to itself.
     fn all(size: Self::Size) -> All<Self> { All(size) }
@@ -49,16 +57,21 @@ impl<I: Index> Index for (I,) where
         I::length(size.0)
     }
 
-    fn as_usize(self, size: Self::Size) -> usize {
-        let index = self.0.as_usize(size.0);
+    fn to_usize(self, size: Self::Size) -> usize {
+        let index = 0;
+        let index = index * I::length(size.0) + self.0.to_usize(size.0);
         index
+    }
+
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
+        let (index, i) = I::from_usize(size.0, index);
+        (index, (i,))
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
         I::each(size.0, |i| f((i,)));
     }
-}
-    
+}    
 
 impl<I: Index, J: Index> Index for (I, J) where
     (I, J): Flatten,
@@ -70,10 +83,17 @@ impl<I: Index, J: Index> Index for (I, J) where
         I::length(size.0) * J::length(size.1)
     }
 
-    fn as_usize(self, size: Self::Size) -> usize {
-        let index = self.0.as_usize(size.0);
-        let index = index * J::length(size.1) + self.1.as_usize(size.1);
+    fn to_usize(self, size: Self::Size) -> usize {
+        let index = 0;
+        let index = index * I::length(size.0) + self.0.to_usize(size.0);
+        let index = index * J::length(size.1) + self.1.to_usize(size.1);
         index
+    }
+
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
+        let (index, j) = J::from_usize(size.1, index);
+        let (index, i) = I::from_usize(size.0, index);
+        (index, (i, j))
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
@@ -91,11 +111,19 @@ impl<I: Index, J: Index, K: Index> Index for (I, J, K) where
         I::length(size.0) * J::length(size.1) * K::length(size.2)
     }
 
-    fn as_usize(self, size: Self::Size) -> usize {
-        let index = self.0.as_usize(size.0);
-        let index = index * J::length(size.1) + self.1.as_usize(size.1);
-        let index = index * K::length(size.2) + self.2.as_usize(size.2);
+    fn to_usize(self, size: Self::Size) -> usize {
+        let index = 0;
+        let index = index * I::length(size.0) + self.0.to_usize(size.0);
+        let index = index * J::length(size.1) + self.1.to_usize(size.1);
+        let index = index * K::length(size.2) + self.2.to_usize(size.2);
         index
+    }
+
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
+        let (index, k) = K::from_usize(size.2, index);
+        let (index, j) = J::from_usize(size.1, index);
+        let (index, i) = I::from_usize(size.0, index);
+        (index, (i, j, k))
     }
 
     fn each(size: Self::Size, mut f: impl FnMut(Self)) {
@@ -109,7 +137,7 @@ impl<I: Index, J: Index, K: Index> Index for (I, J, K) where
 #[derive(Debug, Copy, Clone)]
 pub struct All<I: Index>(I::Size);
 
-impl<I: Index> super::View for super::index::All<I> {
+impl<I: Index> super::View for All<I> {
     type I = I;
     type T = I;
     fn size(&self) -> <Self::I as Index>::Size { self.0 }
@@ -127,33 +155,44 @@ pub trait StaticIndex: 'static + Debug + Copy + PartialEq + Flatten {
     const ALL: &'static [Self];
 
     /// Returns the index in `ALL` of `Self`.
-    fn as_usize(self) -> usize;
+    fn to_usize(self) -> usize;
+
+    /// Equivalent to, but often more efficient than, `ALL[index]`.
+    fn from_usize(index: usize) -> Self { Self::ALL[index] }
 }
 
 impl<I: StaticIndex> Index for I {
     type Size = ();
 
+    #[inline(always)] // Want the caller to see this as constant.
     fn length((): Self::Size) -> usize { Self::ALL.len() }
 
-    fn as_usize(self, (): Self::Size) -> usize {
-        let index = StaticIndex::as_usize(self);
+    fn to_usize(self, (): Self::Size) -> usize {
+        let index = StaticIndex::to_usize(self);
         assert_eq!(self, Self::ALL[index]);
         index
     }
 
+    #[inline(always)] // Want the caller to optimise if `index < length()`.
+    fn from_usize(_: Self::Size, index: usize) -> (usize, Self) {
+        let (q, r) = div_mod(index, Self::length(()));
+        (q, StaticIndex::from_usize(r))
+    }
+
+    // Compiler might work this out by itself, but why leave it uncertain?
     fn each(_: Self::Size, mut f: impl FnMut(Self)) {
-        for &i in Self::ALL { f(i); }
+	for i in 0..Self::length(()) { f(StaticIndex::from_usize(i)); }
     }
 }
 
 impl StaticIndex for () {
     const ALL: &'static [Self] = &[()];
-
-    fn as_usize(self) -> usize { 0 }
+    fn to_usize(self) -> usize { 0 }
+    fn from_usize(_: usize) -> Self { () }
 }
 
 impl StaticIndex for bool {
     const ALL: &'static [Self] = &[false, true];
-
-    fn as_usize(self) -> usize { self as usize }
+    fn to_usize(self) -> usize { self as usize }
+    fn from_usize(index: usize) -> Self { index != 0 }
 }

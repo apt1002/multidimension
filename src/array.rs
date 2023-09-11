@@ -67,13 +67,13 @@ impl<I: Index, T> std::ops::Index<I> for Array<I, T> {
     type Output = T;
 
     fn index(&self, index: I) -> &Self::Output {
-        &self.items[index.as_usize(self.size)]
+        &self.items[index.to_usize(self.size)]
     }
 }
 
 impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.items[index.as_usize(self.size)]
+        &mut self.items[index.to_usize(self.size)]
     }
 }
 
