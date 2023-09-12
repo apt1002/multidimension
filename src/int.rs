@@ -74,18 +74,3 @@ impl Index for Reversed {
         for i in 0..size { f(Reversed(reverse(size, i))); }
     }
 }
-
-// ----------------------------------------------------------------------------
-
-/// A [`View`] that maps each `index` to `(index / B, Fixed(index % B))`.
-///
-/// The inverse map is `<Self::T as Index>::to_usize`.
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct DivMod<const B: usize>(usize);
-
-impl<const B: usize> View for DivMod<B> {
-    type I = usize;
-    type T = (usize, Fixed<usize, B>);
-    fn size(&self) -> <Self::I as Index>::Size { self.0 * B }
-    fn at(&self, index: Self::I) -> Self::T { (index / B, Fixed(index % B)) }
-}
