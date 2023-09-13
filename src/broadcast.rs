@@ -1,7 +1,7 @@
 use super::{Index, NonTuple, Flatten};
 
 /// Implemented by `Self` if type `()` can be expanded to type `Self`.
-pub trait Expand: Index {}
+trait Expand: Index {}
 
 impl<T: Index + NonTuple> Expand for T {}
 
