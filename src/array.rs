@@ -1,4 +1,4 @@
-use super::{Isomorphic, Size, Index, View};
+use super::{Isomorphic, Size, Index, impl_ops_for_view, View};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -84,6 +84,8 @@ impl<I: Index, T: Clone> View for Array<I, T> {
     fn len(&self) -> usize { self.as_ref().len() }
     fn at(&self, index: I) -> T { self[index].clone() }
 }
+
+impl_ops_for_view!(Array<I: Index, T>);
 
 impl<I: Index, T> super::FromView<I, T> for Array<I, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self {

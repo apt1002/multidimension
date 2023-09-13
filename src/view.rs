@@ -1,10 +1,23 @@
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{Index, Isomorphic, Flatten, Broadcast};
+use super::{Index, Isomorphic, Flatten, Broadcast, impl_ops_for_view, Binary};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
+///
+/// ### Arithmetic
+///
+/// All implementations of `View` defined in this crate define the standard
+/// Rust arithmetic operators to mean pointwise arithmetic. For example,
+/// `(v + w).at(i)` gives the same answer as `v.at(i) + w.at(i)`.
+///
+/// More generally, `View`s with different index types can be added if they are
+/// compatible according to the [`Broadcast`] trait. For example,
+/// `(v + Scalar(x)).at(i)` gives the same answer as `v.at(i) + x`.
+///
+/// You are encouraged to define your `View`s similarly, e.g. using the macro
+/// [`impl_ops_for_view`] which is provided for this purpose.
 ///
 /// ### Ownership
 ///
@@ -125,8 +138,8 @@ pub trait View: Sized {
         Compose(self, other)
     }
 
-    /// Creates a `View` that computes pairs of an element of `self` and an
-    /// element of `other`.
+    /// Creates a `View` that pairs of an element of `self` and an element of
+    /// `other`.
     ///
     /// Two `View`s can be zipped only if they have compatible indices. Roughly
     /// speaking, each axis of `self` must be the same type and size as the
@@ -148,11 +161,11 @@ pub trait View: Sized {
     /// ]);
     /// ```
     ///
-    /// Here's an example of zipping a 1D [`Array`] with a scalar:
+    /// Here's an example of zipping a 1D [`Array`] with a [`Scalar`]:
     /// ```
-    /// use multidimension::{Index, View, Array};
+    /// use multidimension::{Index, View, Array, Scalar};
     /// let a: Array<usize, usize> = usize::all(3).collect();
-    /// let b: Array<(), &str> = Array::new((), ["repeated"]);
+    /// let b = Scalar("repeated");
     /// let ab: Array<usize, (usize, &str)> = a.zip(b).collect();
     /// assert_eq!(ab.as_ref(), [
     ///     (0, "repeated"),
@@ -175,11 +188,30 @@ pub trait View: Sized {
     /// ```
     ///
     /// [`Array`]: super::Array
-    fn zip<V>(self, other: V) -> Zip<Self, V> where
+    fn zip<V>(self, other: V) -> Zip<Self, V, super::ops::Pair> where
         V: View,
         Self::I: Broadcast<V::I>,
     {
-        Zip(self, other)
+        Zip(self, other, PhantomData)
+    }
+
+    /// Creates a `View` that pairs of an element of `self` and an element of
+    /// `other`, then applies binary operator `B`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array, ops::Add};
+    /// let a: Array<usize, usize> = Array::new(3, [9, 8, 7]);
+    /// let b: Array<usize, usize> = Array::new(3, [10, 20, 30]);
+    /// // Equivalent to `(a + b).collect()`.
+    /// let ab: Array<usize, usize> = a.binary::<_, Add>(b).collect();
+    /// assert_eq!(ab.as_ref(), [19, 28, 37]);
+    /// ```
+    fn binary<V, B>(self, other: V) -> Zip<Self, V, B> where
+        V: View,
+        Self::I: Broadcast<V::I>,
+        B: Binary<Self::T, V::T>,
+    {
+        Zip(self, other, PhantomData)
     }
 
     /// Change the index type of this `View` to an [`Isomorphic`] type.
@@ -284,6 +316,9 @@ impl<'t, T: 't + Clone, V: View<T=&'t T>> View for Cloned<V> {
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
     fn at(&self, index: Self::I) -> Self::T { self.0.at(index).clone() }
 }
+
+impl_ops_for_view!(Cloned<V>);
+
 // ----------------------------------------------------------------------------
 
 /// The return type of [`View::diagonal()`].
@@ -304,6 +339,8 @@ impl<V: View> View for Diagonal<V> where
     }
 }
 
+impl_ops_for_view!(Diagonal<V>);
+
 // ----------------------------------------------------------------------------
 
 /// The return type of [`View::map()`].
@@ -316,6 +353,8 @@ impl<V: View, U, F: Fn(V::T) -> U> View for Map<V, F> {
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
     fn at(&self, index: Self::I) -> Self::T { self.1(self.0.at(index)) }
 }
+
+impl_ops_for_view!(Map<V, F>);
 
 // ----------------------------------------------------------------------------
 
@@ -330,17 +369,20 @@ impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
     fn at(&self, index: Self::I) -> Self::T { self.1.at(self.0.at(index)) }
 }
 
+impl_ops_for_view!(Compose<V, W>);
+
 // ----------------------------------------------------------------------------
 
-/// The return type of [`View::compose()`].
+/// The return type of [`View::zip()`] and [`View::binary()`].
 #[derive(Debug, Copy, Clone)]
-pub struct Zip<V, W>(V, W);
+pub struct Zip<V, W, B>(V, W, PhantomData<B>);
 
-impl<V: View, W: View> View for Zip<V, W> where
+impl<V: View, W: View, B> View for Zip<V, W, B> where
     V::I: Broadcast<W::I>,
+    B: Binary<V::T, W::T>,
 {
     type I = <V::I as Broadcast<W::I>>::Result;
-    type T = (V::T, W::T);
+    type T = <B as Binary<V::T, W::T>>::Output;
 
     fn size(&self) -> <Self::I as Index>::Size {
         <V::I as Broadcast<W::I>>::size(self.0.size(), self.1.size())
@@ -348,9 +390,11 @@ impl<V: View, W: View> View for Zip<V, W> where
 
     fn at(&self, index: Self::I) -> Self::T {
         let (v_index, w_index) = <V::I as Broadcast<W::I>>::index(index);
-        (self.0.at(v_index), self.1.at(w_index))
+        B::call(self.0.at(v_index), self.1.at(w_index))
     }
 }
+
+impl_ops_for_view!(Zip<V, W, B>);
 
 // ----------------------------------------------------------------------------
 
@@ -367,6 +411,8 @@ impl<V: View, J: Index> View for Iso<V, J> where
     fn size(&self) -> J::Size { Isomorphic::from_iso(self.0.size()) }
     fn at(&self, index: J) -> Self::T { self.0.at(index.to_iso()) }
 }
+
+impl_ops_for_view!(Iso<V, J: Index>);
 
 // ----------------------------------------------------------------------------
 
@@ -396,6 +442,8 @@ impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X
     }
 }
 
+impl_ops_for_view!(Transpose<V, I, X, Y, J>);
+
 // ----------------------------------------------------------------------------
 
 /// The return type of [`View::row()`].
@@ -412,6 +460,8 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     fn at(&self, index: J) -> Self::T { self.0.at((self.1, index).to_iso()) }
 }
 
+impl_ops_for_view!(Row<V, I, J>);
+
 // ----------------------------------------------------------------------------
 
 /// The return type of [`View::column()`]
@@ -421,7 +471,7 @@ type Column<V, I, J> = Row<Transpose<V, (), J, I, ()>, J, I>;
 
 /// A 0-dimensional [`View`].
 #[derive(Debug, Copy, Clone)]
-pub struct Scalar<T: Clone>(T);
+pub struct Scalar<T: Clone>(pub T);
 
 impl<T: Clone> View for Scalar<T> {
     type I = ();
@@ -429,6 +479,8 @@ impl<T: Clone> View for Scalar<T> {
     fn size(&self) -> () { () }
     fn at(&self, _: ()) -> T { self.0.clone() }
 }
+
+impl_ops_for_view!(Scalar<T: Clone>);
 
 // ----------------------------------------------------------------------------
 

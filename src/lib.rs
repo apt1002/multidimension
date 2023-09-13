@@ -43,6 +43,9 @@ pub use broadcast::{Broadcast};
 
 pub mod int;
 
+pub mod ops;
+use ops::{Binary};
+
 pub mod view;
 pub use view::{View, Scalar, FromView};
 
