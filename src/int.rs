@@ -1,8 +1,10 @@
 //! A variety of [`Index`]es and [`View`]s based on `usize`.
 //!
 //! `usize` itself implements `Index`.
+//!
+//! [`View`]: super::View
 
-use super::{div_mod, NonTuple, Size, Index, View};
+use super::{div_mod, NonTuple, Size, Index};
 
 impl Index for usize {
     type Size = usize;

@@ -5,9 +5,9 @@
 //! are internally stored in a [`Box<[T]>`], which is a dense 1-dimensional
 //! representation. The purpose of the `Array` wrapper is to look like a
 //! multi-dimensional collection. To achieve this, the index type `I` can be
-//! any type that implements [`ArrayIndex`]. This includes scalar types such as
+//! any type that implements [`Index`]. This includes scalar types such as
 //! `usize` and `bool`, but also tuples of other types that implement
-//! `ArrayIndex`. You are encouraged to write your own index types.
+//! `Index`. You are encouraged to write your own index types.
 //!
 //! Trait [`View`] is the main way to access and manipulate [`Array`]s. Unlike
 //! `Array`, a `View` doesn't store anything, but instead computes values on
