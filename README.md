@@ -13,8 +13,9 @@ SIMD optimized (unless you explicitly make an array of a SIMD type).
  - Does not integrate with [BLAS] in the back-end, or with [NumPy] in the
 front-end, so it's simply the cleanest design I could make.
  - The API will be familiar to users of [NumPy] and of Rust's [`std::iter`].
- - The array indices can be of any type that implements `ArrayIndex`, and you
-are encouraged to make type distinctions among array indices.
+ - The array indices can be of any type that implements
+`multidimension::Index`, and you are encouraged to make type distinctions among
+array indices.
  - The library provides a high-level way of expressing many common operations,
 and a safe, modular way of writing new operations if necessary.
 
@@ -23,6 +24,8 @@ and a safe, modular way of writing new operations if necessary.
 [`std::iter`]: https://doc.rust-lang.org/std/iter/index.html
 
 ## Examples
+
+More can be found in [the docs](https://docs.rs/multidimension/).
 
 ```
 let a: Array<_, _> = usize::all(3).map(|x| x + 10).diagonal().collect();
