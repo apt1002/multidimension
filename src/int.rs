@@ -4,7 +4,7 @@
 //!
 //! [`View`]: super::View
 
-use super::{div_mod, NonTuple, Size, Index};
+use super::{div_mod, NonTuple, Index};
 
 impl Index for usize {
     type Size = usize;
@@ -25,27 +25,27 @@ impl Index for usize {
 
 // ----------------------------------------------------------------------------
 
-/// An `I`-like [`Index`] with a compile-time constant size.
-///
-/// This wrapper can be applied to any `Index` whose `Size` is a `usize`.
+/// An `usize`-like [`Index`] with a compile-time constant size.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
-pub struct Fixed<I, const SIZE: usize>(pub I);
+pub struct Fixed<const SIZE: usize>(pub usize);
 
-impl<I, const SIZE: usize> NonTuple for Fixed<I, SIZE> {}
+impl<const SIZE: usize> NonTuple for Fixed<SIZE> {}
 
-impl<I: Index<Size=usize>, const SIZE: usize> Index for Fixed<I, SIZE> {
+impl<const SIZE: usize> Index for Fixed<SIZE> {
     type Size = ();
 
-    fn length(_: ()) -> usize { I::length(SIZE) }
+    fn length(_: ()) -> usize { SIZE }
 
-    fn to_usize(self, _: ()) -> usize { self.0.to_usize(SIZE) }
+    fn to_usize(self, _: ()) -> usize { self.0 }
 
     fn from_usize(_: Self::Size, index: usize) -> (usize, Self) {
-        let (index, i) = I::from_usize(SIZE, index);
+        let (index, i) = div_mod(index, SIZE);
         (index, Fixed(i))
     }
 
-    fn each(_: (), mut f: impl FnMut(Self)) { SIZE.each(|i| f(Fixed(i))) }
+    fn each(_: (), mut f: impl FnMut(Self)) {
+        for i in 0..SIZE { f(Fixed(i)); }
+    }
 }
 
 // ----------------------------------------------------------------------------
