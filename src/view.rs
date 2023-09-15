@@ -141,12 +141,8 @@ pub trait View: Sized {
     /// Creates a `View` that pairs of an element of `self` and an element of
     /// `other`.
     ///
-    /// Two `View`s can be zipped only if they have compatible indices. Roughly
-    /// speaking, each axis of `self` must be the same type and size as the
-    /// corresponding axis of `other`, or one of them must be `()`. In the
-    /// latter case, the sole array element of the smaller `View` will be
-    /// replicated to fill out the size of the larger `View`. This is called
-    /// "broadcasting".
+    /// Two `View`s can be zipped only if they have compatible indices. See
+    /// trait [`Broadcast`] for more details.
     ///
     /// Here's an example of zipping two 1D [`Array`]s of the same size:
     /// ```

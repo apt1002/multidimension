@@ -56,7 +56,7 @@ impl<A: Flat, B: NonTuple> Flat for (A, B) {}
 ///
 /// You probably shouldn't write any more implementations of this trait. If you
 /// want a type to implement `Flatten`, it should probably just implement
-/// `NonTuple`, and take advantage of the blanket implementations.
+/// [`NonTuple`], and take advantage of the blanket implementations.
 pub trait Flatten<F: Flat=()>: Sized {
     type Flat: Flat;
 
