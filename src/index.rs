@@ -29,7 +29,7 @@ impl<A: Size, B: Size, C: Size> Size for (A, B, C) {}
 ///
 /// [`Array`]: super::Array
 /// [`NonTuple`]: super::NonTuple
-pub trait Index: Copy + Flatten {
+pub trait Index: Debug + Copy + PartialEq + Flatten {
     /// The run-time representation of the size of an `Array<Self, T>`.
     ///
     /// If the size is a compile-time constant, this will implement
