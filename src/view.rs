@@ -1,7 +1,7 @@
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{Index, Isomorphic, Flatten, Broadcast, impl_ops_for_view, Binary};
+use super::{Isomorphic, Flatten, Index, All, Broadcast, impl_ops_for_view, Binary};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
@@ -208,6 +208,25 @@ pub trait View: Sized {
         B: Binary<Self::T, V::T>,
     {
         Zip(self, other, PhantomData)
+    }
+
+    /// Creates a `View` with the same `Index` type as `self` such that `at(i)`
+    /// returns `(i, self.at(i))`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
+    /// let ea: Array<usize, (usize, &str)> = a.enumerate().collect();
+    /// assert_eq!(ea.as_ref(), [
+    ///     (0, "apple"),
+    ///     (1, "body"),
+    ///     (2, "crane"),
+    /// ]);
+    ///```
+    fn enumerate(self) -> Zip<All<Self::I>, Self, super::ops::Pair> where
+        Self::I: Broadcast<Self::I>,
+    {
+        Self::I::all(self.size()).zip(self)
     }
 
     /// Change the index type of this `View` to an [`Isomorphic`] type.
