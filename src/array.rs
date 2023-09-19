@@ -26,6 +26,9 @@ impl<I: Index, T> Array<I, T> {
         Self {size, items}
     }
 
+    /// Returns the raw array elements.
+    pub fn to_raw(self) -> Box<[T]> { self.items }
+
     /// Construct an `Array` of size `size` from a function.
     ///
     /// ```
