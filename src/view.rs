@@ -77,6 +77,19 @@ pub trait View: Sized {
         A::from_view(self)
     }
 
+    /// Apply `f` to every element of this `View` in turn.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<_, _> = usize::all(5).collect();
+    /// let mut total = 0;
+    /// a.each(|x| { total += x; });
+    /// assert_eq!(total, 10);
+    /// ```
+    fn each(self, mut f: impl FnMut(Self::T)) {
+        Self::I::each(self.size(), |i| f(self.at(i)));
+    }
+
     /// Creates a `View` that clones its elements.
     ///
     /// This is useful when you have a `View` that computes `&T`, but you need
