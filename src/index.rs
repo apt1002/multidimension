@@ -165,7 +165,7 @@ impl<I: Index> super::View for All<I> {
 /// where the size of the `Array` is a compile-time constant.
 ///
 /// [`Array`]: super::Array
-pub trait StaticIndex: 'static + Debug + Copy + PartialEq + Flatten {
+pub trait StaticIndex: 'static + Index<Size=()> {
     /// The (compile-time constant) complete list of `Self`s.
     const ALL: &'static [Self];
 
