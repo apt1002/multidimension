@@ -1,6 +1,6 @@
 [package]
 name = "multidimension"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["Alistair Turnbull"]
 edition = "2021"
 rust-version = "1.71.1"
