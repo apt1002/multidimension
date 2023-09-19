@@ -1,7 +1,7 @@
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{Isomorphic, Flatten, Index, All, Broadcast, impl_ops_for_view, Binary};
+use super::{Isomorphic, Flatten, Index, Broadcast, impl_ops_for_view, Binary};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
@@ -99,6 +99,23 @@ pub trait View: Sized {
         Self: View<T=&'u U>,
     {
         Cloned(self)
+    }
+
+    /// Creates a `View` with the same `Index` type as `self` such that `at(i)`
+    /// returns `(i, self.at(i))`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
+    /// let ea: Array<usize, (usize, &str)> = a.enumerate().collect();
+    /// assert_eq!(ea.as_ref(), [
+    ///     (0, "apple"),
+    ///     (1, "body"),
+    ///     (2, "crane"),
+    /// ]);
+    ///```
+    fn enumerate(self) -> Enumerate<Self> {
+        Enumerate(self)
     }
 
     /// Returns a `View` that maps `(i, i)` to `t` when `Self` maps `i` to `t`.
@@ -223,25 +240,6 @@ pub trait View: Sized {
         Zip(self, other, PhantomData)
     }
 
-    /// Creates a `View` with the same `Index` type as `self` such that `at(i)`
-    /// returns `(i, self.at(i))`.
-    ///
-    /// ```
-    /// use multidimension::{Index, View, Array};
-    /// let a: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
-    /// let ea: Array<usize, (usize, &str)> = a.enumerate().collect();
-    /// assert_eq!(ea.as_ref(), [
-    ///     (0, "apple"),
-    ///     (1, "body"),
-    ///     (2, "crane"),
-    /// ]);
-    ///```
-    fn enumerate(self) -> Zip<All<Self::I>, Self, super::ops::Pair> where
-        Self::I: Broadcast<Self::I>,
-    {
-        Self::I::all(self.size()).zip(self)
-    }
-
     /// Change the index type of this `View` to an [`Isomorphic`] type.
     fn iso<J: Index>(self) -> Iso<Self, J> where
         J: Isomorphic<Self::I>,
@@ -346,6 +344,21 @@ impl<'t, T: 't + Clone, V: View<T=&'t T>> View for Cloned<V> {
 }
 
 impl_ops_for_view!(Cloned<V>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::enumerate()`].
+#[derive(Debug, Copy, Clone)]
+pub struct Enumerate<V>(V);
+
+impl<V: View> View for Enumerate<V> {
+    type I = V::I;
+    type T = (V::I, V::T);
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    fn at(&self, index: Self::I) -> Self::T { (index, self.0.at(index)) }
+}
+
+impl_ops_for_view!(Enumerate<V>);
 
 // ----------------------------------------------------------------------------
 
