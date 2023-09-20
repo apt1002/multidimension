@@ -174,7 +174,7 @@ pub trait View: Sized {
     /// ```
     /// use multidimension::{Index, View, Array};
     /// let a: Array<usize, usize> = Array::new(2, [2, 1]);
-    /// let b: Array<(bool, usize), &str> = Array::new(((), 3), [
+    /// let b: Array<(bool, usize), &str> = Array::new(3, [
     ///     "apple", "body", "crane",
     ///     "APPLE", "BODY", "CRANE",
     /// ]);

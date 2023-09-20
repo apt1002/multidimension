@@ -12,7 +12,7 @@ impl<I: Index, T> Array<I, T> {
     ///
     /// ```
     /// use multidimension::{Index, Array};
-    /// let a: Array<(usize, bool), f32> = Array::new((3, ()), [0.0, 1.0, -1.0, 2.0, 3.0, -2.0]);
+    /// let a: Array<(usize, bool), f32> = Array::new(3, [0.0, 1.0, -1.0, 2.0, 3.0, -2.0]);
     /// assert_eq!(a[(0, false)], 0.0);
     /// assert_eq!(a[(0, true)], 1.0);
     /// assert_eq!(a[(1, false)], -1.0);
@@ -20,7 +20,8 @@ impl<I: Index, T> Array<I, T> {
     /// assert_eq!(a[(2, false)], 3.0);
     /// assert_eq!(a[(2, true)], -2.0);
     /// ```
-    pub fn new(size: I::Size, items: impl Into<Box<[T]>>) -> Self {
+    pub fn new(size: impl Isomorphic<I::Size>, items: impl Into<Box<[T]>>) -> Self {
+        let size = size.to_iso();
         let items = items.into();
         assert_eq!(I::length(size), items.len());
         Self {size, items}
