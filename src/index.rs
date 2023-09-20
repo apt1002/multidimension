@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 
-use super::{div_mod, Flatten};
+use super::{div_mod, Flatten, Isomorphic};
 
 /// The run-time size of an array axis. An array axis with a compile-time
 /// constant size can simply use `()`, which implements this trait.
@@ -57,7 +57,7 @@ pub trait Index: Debug + Copy + PartialEq + Flatten {
     }
 
     /// Returns a View of the specified size that maps every `Self` to itself.
-    fn all(size: Self::Size) -> All<Self> { All(size) }
+    fn all(size: impl Isomorphic<Self::Size>) -> All<Self> { All(size.to_iso()) }
 }
 
 // `impl Index for ()` is provided by implementing `StaticIndex`.
