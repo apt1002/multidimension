@@ -160,12 +160,40 @@ pub trait View: Sized {
     /// let a: Array<bool, usize> = Array::new((), [2, 1]);
     /// let b: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
     /// let ab: Array<bool, &str> = a.compose(b).collect();
-    /// assert_eq!(ab.as_ref(), ["crane", "body"])
+    /// assert_eq!(ab.as_ref(), ["crane", "body"]);
     /// ```
     fn compose<V>(self, other: V) -> Compose<Self, V> where
         V: View<I=Self::T>,
     {
         Compose(self, other)
+    }
+
+    /// Creates a view such that `at((i, x, j))` gives
+    /// `self.at((i, other.at(x), j))`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<usize, usize> = Array::new(2, [2, 1]);
+    /// let b: Array<(bool, usize), &str> = Array::new(((), 3), [
+    ///     "apple", "body", "crane",
+    ///     "APPLE", "BODY", "CRANE",
+    /// ]);
+    /// let ab: Array<(bool, usize, ()), &str> = b.map_axis(a).collect();
+    /// assert_eq!(ab.as_ref(), [
+    ///     "crane", "body",
+    ///     "CRANE", "BODY",
+    /// ]);
+    /// ```
+    fn map_axis<I: Index, V: View, J: Index>(self, other: V) -> MapAxis<Self, I, V, J> where
+        V::T: Index,
+        (I, V::T, J): Flatten,
+        (I::Size, <V::T as Index>::Size, J::Size): Flatten,
+        (I, V::I, J): Flatten,
+        (I::Size, <V::I as Index>::Size, J::Size): Flatten,
+        Self::I: Isomorphic<(I, V::T, J)>,
+        <Self::I as Index>::Size: Isomorphic<(I::Size, <V::T as Index>::Size, J::Size)>,
+    {
+        MapAxis(self, PhantomData, other, PhantomData)
     }
 
     /// Creates a `View` that pairs of an element of `self` and an element of
@@ -411,6 +439,37 @@ impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
 }
 
 impl_ops_for_view!(Compose<V, W>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::map_axis()`].
+#[derive(Debug, Copy, Clone)]
+pub struct MapAxis<V, I, W, J>(V, PhantomData<I>, W, PhantomData<J>);
+
+impl<V: View, I: Index, W: View, J: Index> View for MapAxis<V, I, W, J> where
+    W::T: Index,
+    (I, W::T, J): Flatten,
+    (I::Size, <W::T as Index>::Size, J::Size): Flatten,
+    (I, W::I, J): Flatten,
+    (I::Size, <W::I as Index>::Size, J::Size): Flatten,
+    V::I: Isomorphic<(I, W::T, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, <W::T as Index>::Size, J::Size)>,
+{
+    type I = (I, W::I, J);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i_size, _, j_size) = self.0.size().to_iso();
+        (i_size, self.2.size(), j_size)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        let (i, x, j) = index;
+        self.0.at(Isomorphic::from_iso((i, self.2.at(x), j)))
+    }
+}
+
+impl_ops_for_view!(MapAxis<V, I, W, J>);
 
 // ----------------------------------------------------------------------------
 
