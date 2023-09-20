@@ -143,8 +143,8 @@ impl<T, U> Binary<T, U> for Shr where T: std::ops::Shr<U> {
 /// [`impl_ops_for_view`]: crate::impl_ops_for_view
 #[macro_export]
 macro_rules! impl_op_for_view {
-    ($op:ident for $v:ident<$($param:ident$(: $bound:path)?),*> { $method:ident }) => {
-        impl<RHS: View, $($param$(: $bound)?),*> std::ops::$op<RHS> for $v<$($param),*> where
+    ($op:ident for $v:ident<$($a:lifetime,)? $($param:ident$(: $bound:path)?),*> { $method:ident }) => {
+        impl<$($a,)? RHS: View, $($param$(: $bound)?),*> std::ops::$op<RHS> for $v<$($a,)? $($param),*> where
             Self: View,
             <Self as View>::I: $crate::Broadcast<RHS::I>,
             <Self as View>::T: std::ops::$op<RHS::T>,
@@ -179,16 +179,16 @@ macro_rules! impl_op_for_view {
 /// [`View::binary()`]: super::View::binary()
 #[macro_export]
 macro_rules! impl_ops_for_view {
-    ($v:ident<$($param:ident$(: $bound:path)?),*>) => {
-        $crate::impl_op_for_view! { Add for $v<$($param$(: $bound)?),*> { add } }
-        $crate::impl_op_for_view! { Sub for $v<$($param$(: $bound)?),*> { sub } }
-        $crate::impl_op_for_view! { Mul for $v<$($param$(: $bound)?),*> { mul } }
-        $crate::impl_op_for_view! { Div for $v<$($param$(: $bound)?),*> { div } }
-        $crate::impl_op_for_view! { Rem for $v<$($param$(: $bound)?),*> { rem } }
-        $crate::impl_op_for_view! { BitAnd for $v<$($param$(: $bound)?),*> { bitand } }
-        $crate::impl_op_for_view! { BitOr for $v<$($param$(: $bound)?),*> { bitor } }
-        $crate::impl_op_for_view! { BitXor for $v<$($param$(: $bound)?),*> { bitxor } }
-        $crate::impl_op_for_view! { Shl for $v<$($param$(: $bound)?),*> { shl } }
-        $crate::impl_op_for_view! { Shr for $v<$($param$(: $bound)?),*> { shr } }
+    ($v:ident<$($a:lifetime,)? $($param:ident$(: $bound:path)?),*>) => {
+        $crate::impl_op_for_view! { Add for $v<$($a,)? $($param$(: $bound)?),*> { add } }
+        $crate::impl_op_for_view! { Sub for $v<$($a,)? $($param$(: $bound)?),*> { sub } }
+        $crate::impl_op_for_view! { Mul for $v<$($a,)? $($param$(: $bound)?),*> { mul } }
+        $crate::impl_op_for_view! { Div for $v<$($a,)? $($param$(: $bound)?),*> { div } }
+        $crate::impl_op_for_view! { Rem for $v<$($a,)? $($param$(: $bound)?),*> { rem } }
+        $crate::impl_op_for_view! { BitAnd for $v<$($a,)? $($param$(: $bound)?),*> { bitand } }
+        $crate::impl_op_for_view! { BitOr for $v<$($a,)? $($param$(: $bound)?),*> { bitor } }
+        $crate::impl_op_for_view! { BitXor for $v<$($a,)? $($param$(: $bound)?),*> { bitxor } }
+        $crate::impl_op_for_view! { Shl for $v<$($a,)? $($param$(: $bound)?),*> { shl } }
+        $crate::impl_op_for_view! { Shr for $v<$($a,)? $($param$(: $bound)?),*> { shr } }
     };
 }
