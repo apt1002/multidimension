@@ -27,10 +27,11 @@ impl<I: Index, T> Array<I, T> {
         Self {size, items}
     }
 
-    /// Returns the raw array elements.
-    pub fn to_raw(self) -> Box<[T]> { self.items }
-
     /// Construct an `Array` of size `size` from a function.
+    ///
+    /// Consider also [`fn_view()`].
+    ///
+    /// [`fn_view()`]: super::fn_view
     ///
     /// ```
     /// use multidimension::{Index, Array};
@@ -46,6 +47,9 @@ impl<I: Index, T> Array<I, T> {
         size.each(|i| items.push(f(i)));
         Self {size, items: items.into()}
     }
+
+    /// Returns the raw array elements.
+    pub fn to_raw(self) -> Box<[T]> { self.items }
 
     /// Change the index type of this array without moving any of the items.
     pub fn iso<J: Index>(self) -> Array<J, T> where

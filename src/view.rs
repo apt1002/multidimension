@@ -588,3 +588,26 @@ impl_ops_for_view!(Scalar<T: Clone>);
 pub trait FromView<I: Index, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self;
 }
+
+// ----------------------------------------------------------------------------
+
+/// Construct a `View` of size `size` from a function.
+///
+/// Consider also [`Array::from_fn()`].
+///
+/// [`Array::from_fn()`]: super::Array::from_fn
+///
+/// ```
+/// use multidimension::{Index, View, fn_view, Array};
+/// let a: Array<usize, _> = fn_view(10, |x| x % 3 == 0).collect();
+/// assert_eq!(a.as_ref(), [true, false, false, true, false, false, true, false, false, true]);
+/// ```
+pub fn fn_view<I, T, F>(size: impl Isomorphic<I::Size>, f: F) -> FnView<I, F> where
+    I: Index,
+    F: Fn(I) -> T,
+{
+    I::all(size).map(f)
+}
+
+/// The return type of [`fn_view()`].
+pub type FnView<I, F> = Map<super::All<I>, F>;
