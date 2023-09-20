@@ -326,6 +326,14 @@ pub trait View: Sized {
         Row(self, i, PhantomData)
     }
 
+    /// Returns a `View` whose `at(i)` returns `self.row(i)`.
+    fn rows<I: Index, J: Index>(&self) -> Rows<Self, I, J> where
+        (I, J): Isomorphic<Self::I>,
+        (I::Size, J::Size): Isomorphic<<Self::I as Index>::Size>,
+    {
+        Rows(self, PhantomData)
+    }
+
     /// Returns a `View` whose `at(i)` returns `self.at(i, j)`.
     ///
     /// ```
@@ -561,6 +569,24 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
 }
 
 impl_ops_for_view!(Row<V, I, J>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of `View::rows()`.
+#[derive(Debug, Copy, Clone)]
+pub struct Rows<'a, V: 'a, I, J>(&'a V, PhantomData<(I, J)>);
+
+impl<'a, V: 'a + View, I: Index, J: Index> View for Rows<'a, V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+{
+    type I = I;
+    type T = Row<&'a V, I, J>;
+    fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
+    fn at(&self, index: I) -> Self::T { self.0.row(index) }
+}
+
+impl_ops_for_view!(Rows<'a, V, I, J>);
 
 // ----------------------------------------------------------------------------
 
