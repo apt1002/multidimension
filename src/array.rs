@@ -1,4 +1,4 @@
-use super::{Isomorphic, Size, Index, impl_ops_for_view, View};
+use super::{Isomorphic, Index, impl_ops_for_view, View};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -8,6 +8,11 @@ pub struct Array<I: Index, T> {
 }
 
 impl<I: Index, T> Array<I, T> {
+    fn new_inner(size: I::Size, items: Box<[T]>) -> Self {
+        assert_eq!(I::length(size), items.len());
+        Self {size, items}
+    }
+
     /// Constructs an `Array` of size `size` given its elements.
     ///
     /// ```
@@ -21,10 +26,7 @@ impl<I: Index, T> Array<I, T> {
     /// assert_eq!(a[(2, true)], -2.0);
     /// ```
     pub fn new(size: impl Isomorphic<I::Size>, items: impl Into<Box<[T]>>) -> Self {
-        let size = size.to_iso();
-        let items = items.into();
-        assert_eq!(I::length(size), items.len());
-        Self {size, items}
+        Self::new_inner(size.to_iso(), items.into())
     }
 
     /// Construct an `Array` of size `size` from a function.
@@ -40,12 +42,9 @@ impl<I: Index, T> Array<I, T> {
     /// ```
     pub fn from_fn(
         size: impl Isomorphic<I::Size>,
-        mut f: impl FnMut(I) -> T,
+        f: impl Fn(I) -> T,
     ) -> Self {
-        let size = size.to_iso();
-        let mut items = Vec::with_capacity(I::length(size));
-        size.each(|i| items.push(f(i)));
-        Self {size, items: items.into()}
+        super::fn_view(size, f).collect()
     }
 
     /// Returns the raw array elements.
@@ -95,11 +94,11 @@ impl<I: Index, T: Clone> View for Array<I, T> {
 
 impl_ops_for_view!(Array<I: Index, T>);
 
-impl<I: Index, T> super::FromView<I, T> for Array<I, T> where
-    I::Size: Isomorphic,
-{
+impl<I: Index, T> super::FromView<I, T> for Array<I, T> {
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self {
-        Self::from_fn(v.size(), |i| v.at(i))
+        let mut items = Vec::with_capacity(I::length(v.size()));
+        v.each(|t| items.push(t));
+        Self::new_inner(v.size(), items.into())
     }
 }
 
