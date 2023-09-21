@@ -4,16 +4,16 @@ use super::{div_mod, Flatten, Isomorphic};
 
 /// The run-time size of an array axis. An array axis with a compile-time
 /// constant size can simply use `()`, which implements this trait.
-pub trait Size: Copy + PartialEq {
+pub trait Size: Debug + Copy + PartialEq + Flatten {
     /// An abbreviation for `I::each(self, f)`.
     fn each<I: Index<Size=Self>>(self, f: impl FnMut(I)) { I::each(self, f); }
 }
 
 impl Size for usize {}
 impl Size for () {}
-impl<A: Size> Size for (A,) {}
-impl<A: Size, B: Size> Size for (A, B) {}
-impl<A: Size, B: Size, C: Size> Size for (A, B, C) {}
+impl<A: Size> Size for (A,) where (A,): Flatten {}
+impl<A: Size, B: Size> Size for (A, B) where (A, B): Flatten {}
+impl<A: Size, B: Size, C: Size> Size for (A, B, C) where (A, B, C): Flatten {}
 
 // ----------------------------------------------------------------------------
 
@@ -34,7 +34,7 @@ pub trait Index: Debug + Copy + PartialEq + Flatten {
     ///
     /// If the size is a compile-time constant, this will implement
     /// [`Isomorphic<()>`].
-    type Size: Size + Flatten;
+    type Size: Size;
 
     /// Returns the number of `T`s in an `Array<Self, T>`.
     fn length(size: Self::Size) -> usize;

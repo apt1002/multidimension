@@ -446,17 +446,8 @@ impl_ops_for_view!(Map<V, F>);
 // ----------------------------------------------------------------------------
 
 /// The return type of [`View::flat_map()`].
-#[derive(Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct FlatMap<V, W: View, F>(V, F, <W::I as Index>::Size);
-
-// Explicit implementation of `Debug` is needed because of the "where" clause.
-impl<V: Debug, W: View, F: Debug> std::fmt::Debug for FlatMap<V, W, F> where
-    <W::I as Index>::Size: Debug,
-{
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        f.debug_tuple("FlatMap").field(&self.0).field(&self.1).field(&self.2).finish()
-    }
-}
 
 impl<V: View, W: View, F: Fn(V::T) -> W> View for FlatMap<V, W, F> where
     (V::I, W::I): Flatten,
