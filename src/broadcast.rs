@@ -1,24 +1,12 @@
-use super::{Index, NonTuple, Flatten};
+use super::{Index, NonTuple};
 
 /// Implemented by `Self` if type `()` can be expanded to type `Self`.
 trait Expand: Index {}
 
 impl<T: Index + NonTuple> Expand for T {}
-
-impl<A: Index> Expand for (A,) where
-    (A,): Flatten,
-    (A::Size,): Flatten,
-{}
-
-impl<A: Index, B: Index> Expand for (A, B) where
-    (A, B): Flatten,
-    (A::Size, B::Size): Flatten,
-{}
-
-impl<A: Index, B: Index, C: Index> Expand for (A, B, C) where
-    (A, B, C): Flatten,
-    (A::Size, B::Size, C::Size): Flatten,
-{}
+impl<A: Index> Expand for (A,) {}
+impl<A: Index, B: Index> Expand for (A, B) {}
+impl<A: Index, B: Index, C: Index> Expand for (A, B, C) {}
 
 // ----------------------------------------------------------------------------
 
@@ -96,18 +84,6 @@ impl<
 > Broadcast<(JA, JB)> for (IA, IB) where
     IA: Broadcast<JA>,
     IB: Broadcast<JB>,
-    (IA, IB): Flatten,
-    (IA::Size, IB::Size): Flatten,
-    (JA, JB): Flatten,
-    (JA::Size, JB::Size): Flatten,
-    (
-        <IA as Broadcast<JA>>::Result,
-        <IB as Broadcast<JB>>::Result,
-    ): Flatten,
-    (
-        <<IA as Broadcast<JA>>::Result as Index>::Size,
-        <<IB as Broadcast<JB>>::Result as Index>::Size,
-    ): Flatten,
 {
     type Result = (
         <IA as Broadcast<JA>>::Result,
@@ -142,20 +118,6 @@ impl<
     IA: Broadcast<JA>,
     IB: Broadcast<JB>,
     IC: Broadcast<JC>,
-    (IA, IB, IC): Flatten,
-    (IA::Size, IB::Size, IC::Size): Flatten,
-    (JA, JB, JC): Flatten,
-    (JA::Size, JB::Size, JC::Size): Flatten,
-    (
-        <IA as Broadcast<JA>>::Result,
-        <IB as Broadcast<JB>>::Result,
-        <IC as Broadcast<JC>>::Result,
-    ): Flatten,
-    (
-        <<IA as Broadcast<JA>>::Result as Index>::Size,
-        <<IB as Broadcast<JB>>::Result as Index>::Size,
-        <<IC as Broadcast<JC>>::Result as Index>::Size,
-    ): Flatten,
 {
     type Result = (
         <IA as Broadcast<JA>>::Result,

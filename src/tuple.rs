@@ -158,12 +158,20 @@ fn from_flat<T: Flatten>(f: T::Flat) -> T {
 }
 
 /// Relates two types if they have the same canonical form.
-pub trait Isomorphic<T: Flatten>: Flatten<Flat=T::Flat> {
+///
+/// The simplest and best way to implement `Isomorphic` for a non-tuple type is
+/// to implement [`NonTuple`]. You are discouraged from implementing
+/// `Isomorphic<T>` for `T` explicitly, because that won't be sufficient to
+/// implement `Isomorphic` for tuples containing `T`.
+pub trait Isomorphic<T=Self> {
+    fn from_iso(t: T) -> Self;
+    fn to_iso(self) -> T;
+}
+
+impl<T: Flatten, U: Flatten<Flat=T::Flat>> Isomorphic<T> for U {
     fn from_iso(t: T) -> Self { from_flat(to_flat(t)) }
     fn to_iso(self) -> T { from_flat(to_flat(self)) }
 }
-
-impl<T: Flatten, U: Flatten<Flat=T::Flat>> Isomorphic<T> for U {}
 
 // ----------------------------------------------------------------------------
 

@@ -39,7 +39,7 @@
 fn div_mod(n: usize, d: usize) -> (usize, usize) { (n / d, n % d) }
 
 mod tuple;
-pub use tuple::{NonTuple, Flat, Flatten, Isomorphic};
+pub use tuple::{NonTuple, Isomorphic};
 
 mod index;
 pub use index::{Size, Index, StaticIndex, All};

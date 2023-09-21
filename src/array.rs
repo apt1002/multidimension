@@ -95,7 +95,9 @@ impl<I: Index, T: Clone> View for Array<I, T> {
 
 impl_ops_for_view!(Array<I: Index, T>);
 
-impl<I: Index, T> super::FromView<I, T> for Array<I, T> {
+impl<I: Index, T> super::FromView<I, T> for Array<I, T> where
+    I::Size: Isomorphic,
+{
     fn from_view<V: View<I=I, T=T>>(v: &V) -> Self {
         Self::from_fn(v.size(), |i| v.at(i))
     }

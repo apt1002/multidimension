@@ -1,19 +1,23 @@
 use std::fmt::{Debug};
 
-use super::{div_mod, Flatten, Isomorphic};
+use super::{div_mod, Isomorphic};
 
 /// The run-time size of an array axis. An array axis with a compile-time
 /// constant size can simply use `()`, which implements this trait.
-pub trait Size: Debug + Copy + PartialEq + Flatten {
+///
+/// Types that implement `Size` should implement [`Isomorphic`]. The simplest
+/// and best way to achieve this for a non-tuple type is to implement
+/// [`NonTuple`].
+pub trait Size: Debug + Copy + PartialEq {
     /// An abbreviation for `I::each(self, f)`.
     fn each<I: Index<Size=Self>>(self, f: impl FnMut(I)) { I::each(self, f); }
 }
 
 impl Size for usize {}
 impl Size for () {}
-impl<A: Size> Size for (A,) where (A,): Flatten {}
-impl<A: Size, B: Size> Size for (A, B) where (A, B): Flatten {}
-impl<A: Size, B: Size, C: Size> Size for (A, B, C) where (A, B, C): Flatten {}
+impl<A: Size> Size for (A,) {}
+impl<A: Size, B: Size> Size for (A, B) {}
+impl<A: Size, B: Size, C: Size> Size for (A, B, C) {}
 
 // ----------------------------------------------------------------------------
 
@@ -23,13 +27,13 @@ impl<A: Size, B: Size, C: Size> Size for (A, B, C) where (A, B, C): Flatten {}
 /// is a compile-time constant, you can save some effort by implementing
 /// [`StaticIndex`] instead.
 ///
-/// All types that implement `Index` must implement [`Flatten`]. The
-/// simplest way to achieve this for a non-tuple type is to implement
+/// Types that implement `Index` should implement [`Isomorphic`]. The simplest
+/// and best way to achieve this for a non-tuple type is to implement
 /// [`NonTuple`].
 ///
 /// [`Array`]: super::Array
 /// [`NonTuple`]: super::NonTuple
-pub trait Index: Debug + Copy + PartialEq + Flatten {
+pub trait Index: Debug + Copy + PartialEq {
     /// The run-time representation of the size of an `Array<Self, T>`.
     ///
     /// If the size is a compile-time constant, this will implement
@@ -62,10 +66,7 @@ pub trait Index: Debug + Copy + PartialEq + Flatten {
 
 // `impl Index for ()` is provided by implementing `StaticIndex`.
 
-impl<I: Index> Index for (I,) where
-    (I,): Flatten,
-    (I::Size,): Flatten,
-{
+impl<I: Index> Index for (I,) {
     type Size = (I::Size,);
 
     fn length(size: Self::Size) -> usize {
@@ -88,10 +89,7 @@ impl<I: Index> Index for (I,) where
     }
 }    
 
-impl<I: Index, J: Index> Index for (I, J) where
-    (I, J): Flatten,
-    (I::Size, J::Size): Flatten,
-{
+impl<I: Index, J: Index> Index for (I, J) {
     type Size = (I::Size, J::Size);
 
     fn length(size: Self::Size) -> usize {
@@ -116,10 +114,7 @@ impl<I: Index, J: Index> Index for (I, J) where
     }
 }
 
-impl<I: Index, J: Index, K: Index> Index for (I, J, K) where
-    (I, J, K): Flatten,
-    (I::Size, J::Size, K::Size): Flatten,
-{
+impl<I: Index, J: Index, K: Index> Index for (I, J, K) {
     type Size = (I::Size, J::Size, K::Size);
 
     fn length(size: Self::Size) -> usize {

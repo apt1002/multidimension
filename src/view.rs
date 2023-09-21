@@ -2,7 +2,7 @@ use std::fmt::{Debug};
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{Isomorphic, Flatten, Index, Broadcast, impl_ops_for_view, Binary};
+use super::{Isomorphic, Index, Broadcast, impl_ops_for_view, Binary};
 
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
@@ -192,10 +192,6 @@ pub trait View: Sized {
     /// ```
     fn map_axis<I: Index, V: View, J: Index>(self, other: V) -> MapAxis<Self, I, V, J> where
         V::T: Index,
-        (I, V::T, J): Flatten,
-        (I::Size, <V::T as Index>::Size, J::Size): Flatten,
-        (I, V::I, J): Flatten,
-        (I::Size, <V::I as Index>::Size, J::Size): Flatten,
         Self::I: Isomorphic<(I, V::T, J)>,
         <Self::I as Index>::Size: Isomorphic<(I::Size, <V::T as Index>::Size, J::Size)>,
     {
@@ -415,8 +411,6 @@ pub struct Diagonal<V>(V);
 impl<V: View> View for Diagonal<V> where
     V::I: PartialEq,
     V::T: Default,
-    (V::I, V::I): Flatten,
-    (<V::I as Index>::Size, <V::I as Index>::Size): Flatten,
 {
     type I = (V::I, V::I);
     type T = V::T;
@@ -450,8 +444,6 @@ impl_ops_for_view!(Map<V, F>);
 pub struct FlatMap<V, W: View, F>(V, F, <W::I as Index>::Size);
 
 impl<V: View, W: View, F: Fn(V::T) -> W> View for FlatMap<V, W, F> where
-    (V::I, W::I): Flatten,
-    (<V::I as Index>::Size, <W::I as Index>::Size): Flatten,
 {
     type I = (V::I, W::I);
     type T = W::T;
@@ -484,10 +476,6 @@ pub struct MapAxis<V, I, W, J>(V, PhantomData<I>, W, PhantomData<J>);
 
 impl<V: View, I: Index, W: View, J: Index> View for MapAxis<V, I, W, J> where
     W::T: Index,
-    (I, W::T, J): Flatten,
-    (I::Size, <W::T as Index>::Size, J::Size): Flatten,
-    (I, W::I, J): Flatten,
-    (I::Size, <W::I as Index>::Size, J::Size): Flatten,
     V::I: Isomorphic<(I, W::T, J)>,
     <V::I as Index>::Size: Isomorphic<(I::Size, <W::T as Index>::Size, J::Size)>,
 {
@@ -559,10 +547,6 @@ pub struct Transpose<V, I, X, Y, J>(V, PhantomData<(I, (X, Y), J)>);
 impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X, Y, J> where
     (I, (Y, X), J): Isomorphic<V::I>,
     (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
-    (X, Y): Flatten,
-    (I, (X, Y), J): Flatten,
-    (X::Size, Y::Size): Flatten,
-    (I::Size, (X::Size, Y::Size), J::Size): Flatten,
 {
     type I = (I, (X, Y), J);
     type T = V::T;
