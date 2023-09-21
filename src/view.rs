@@ -1,3 +1,4 @@
+use std::fmt::{Debug};
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
@@ -94,8 +95,7 @@ pub trait View: Sized {
     ///
     /// This is useful when you have a `View` that computes `&T`, but you need
     /// a `View` that computes `T`.
-    fn cloned<'u, U>(self) -> Cloned<Self> where
-        U: 'u + Clone,
+    fn cloned<'u, U: 'u + Clone>(self) -> Cloned<Self> where
         Self: View<T=&'u U>,
     {
         Cloned(self)
@@ -131,7 +131,6 @@ pub trait View: Sized {
     /// ]);
     /// ```
     fn diagonal(self) -> Diagonal<Self> where
-        Self::I: PartialEq,
         Self::T: Default,
     {
         Diagonal(self)
@@ -153,6 +152,15 @@ pub trait View: Sized {
         Map(self, f)
     }
 
+    /// Creates a `View` that applies `f` to the elements of `Self` to obtain
+    /// `View`s of size `size` which are then concatenated. More precisely,
+    /// `self.flat_map(f).at((i, j))` returns `f(self.at(i)).at(j)`.
+    fn flat_map<V: View, F>(self, f: F, size: <V::I as Index>::Size) -> FlatMap<Self, V, F> where
+        F: Fn(Self::T) -> V,
+    {
+        FlatMap(self, f, size)
+    }
+
     /// Creates a `View` that uses `self` to select elements of `other`.
     ///
     /// ```
@@ -162,9 +170,7 @@ pub trait View: Sized {
     /// let ab: Array<bool, &str> = a.compose(b).collect();
     /// assert_eq!(ab.as_ref(), ["crane", "body"]);
     /// ```
-    fn compose<V>(self, other: V) -> Compose<Self, V> where
-        V: View<I=Self::T>,
-    {
+    fn compose<V: View<I=Self::T>>(self, other: V) -> Compose<Self, V> {
         Compose(self, other)
     }
 
@@ -242,8 +248,7 @@ pub trait View: Sized {
     /// ```
     ///
     /// [`Array`]: super::Array
-    fn zip<V>(self, other: V) -> Zip<Self, V, super::ops::Pair> where
-        V: View,
+    fn zip<V: View>(self, other: V) -> Zip<Self, V, super::ops::Pair> where
         Self::I: Broadcast<V::I>,
     {
         Zip(self, other, PhantomData)
@@ -260,8 +265,7 @@ pub trait View: Sized {
     /// let ab: Array<usize, usize> = a.binary::<_, Add>(b).collect();
     /// assert_eq!(ab.as_ref(), [19, 28, 37]);
     /// ```
-    fn binary<V, B>(self, other: V) -> Zip<Self, V, B> where
-        V: View,
+    fn binary<V: View, B>(self, other: V) -> Zip<Self, V, B> where
         Self::I: Broadcast<V::I>,
         B: Binary<Self::T, V::T>,
     {
@@ -438,6 +442,33 @@ impl<V: View, U, F: Fn(V::T) -> U> View for Map<V, F> {
 }
 
 impl_ops_for_view!(Map<V, F>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::flat_map()`].
+#[derive(Copy, Clone)]
+pub struct FlatMap<V, W: View, F>(V, F, <W::I as Index>::Size);
+
+// Explicit implementation of `Debug` is needed because of the "where" clause.
+impl<V: Debug, W: View, F: Debug> std::fmt::Debug for FlatMap<V, W, F> where
+    <W::I as Index>::Size: Debug,
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        f.debug_tuple("FlatMap").field(&self.0).field(&self.1).field(&self.2).finish()
+    }
+}
+
+impl<V: View, W: View, F: Fn(V::T) -> W> View for FlatMap<V, W, F> where
+    (V::I, W::I): Flatten,
+    (<V::I as Index>::Size, <W::I as Index>::Size): Flatten,
+{
+    type I = (V::I, W::I);
+    type T = W::T;
+    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), self.2) }
+    fn at(&self, index: Self::I) -> Self::T { self.1(self.0.at(index.0)).at(index.1) }
+}
+
+impl_ops_for_view!(FlatMap<V, W: View, F>);
 
 // ----------------------------------------------------------------------------
 
