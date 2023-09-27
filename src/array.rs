@@ -97,11 +97,22 @@ impl<I: Index, T: Clone> View for Array<I, T> {
 
 impl_ops_for_view!(Array<I: Index, T>);
 
-impl<I: Index, T> super::FromView<I, T> for Array<I, T> {
-    fn from_view<V: View<I=I, T=T>>(v: &V) -> Self {
-        let mut items = Vec::with_capacity(I::length(v.size()));
-        v.each(|t| items.push(t));
-        Self::new_inner(v.size(), items.into())
+// ----------------------------------------------------------------------------
+
+impl<T> super::Push<T> for Vec<T> {
+    fn push(&mut self, t: T) { Vec::push(self, t); }
+}
+
+impl<I: Index, T: Clone> super::NewView for Array<I, T> {
+    type Buffer = Vec<T>;
+
+    fn new_view(
+        size: I::Size,
+        callback: impl FnOnce(&mut Self::Buffer),
+    ) -> Self {
+        let mut buffer = Vec::with_capacity(I::length(size));
+        callback(&mut buffer);
+        Self::new_inner(size, buffer.into())
     }
 }
 

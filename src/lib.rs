@@ -55,5 +55,8 @@ use ops::{Binary};
 pub mod view;
 pub use view::{View, Scalar, FromView, fn_view};
 
+mod new;
+pub use new::{NewView, Push};
+
 mod array;
 pub use array::{Array};
