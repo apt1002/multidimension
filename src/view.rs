@@ -53,7 +53,7 @@ pub trait View: Sized {
     type I: Index;
 
     /// The element type.
-    type T;
+    type T: Clone;
 
     /// The size of the array.
     fn size(&self) -> <Self::I as Index>::Size;
@@ -428,7 +428,7 @@ impl_ops_for_view!(Diagonal<V>);
 #[derive(Debug, Copy, Clone)]
 pub struct Map<V, F>(V, F);
 
-impl<V: View, U, F: Fn(V::T) -> U> View for Map<V, F> {
+impl<V: View, U: Clone, F: Fn(V::T) -> U> View for Map<V, F> {
     type I = V::I;
     type T = U;
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
@@ -504,6 +504,7 @@ pub struct Zip<V, W, B>(V, W, PhantomData<B>);
 impl<V: View, W: View, B> View for Zip<V, W, B> where
     V::I: Broadcast<W::I>,
     B: Binary<V::T, W::T>,
+    B::Output: Clone,
 {
     type I = <V::I as Broadcast<W::I>>::Result;
     type T = <B as Binary<V::T, W::T>>::Output;
@@ -671,8 +672,7 @@ pub trait FromView<I: Index, T> {
 /// let a: Array<usize, _> = fn_view(10, |x| x % 3 == 0).collect();
 /// assert_eq!(a.as_ref(), [true, false, false, true, false, false, true, false, false, true]);
 /// ```
-pub fn fn_view<I, T, F>(size: impl Isomorphic<I::Size>, f: F) -> FnView<I, F> where
-    I: Index,
+pub fn fn_view<I: Index, T: Clone, F>(size: impl Isomorphic<I::Size>, f: F) -> FnView<I, F> where
     F: Fn(I) -> T,
 {
     I::all(size).map(f)

@@ -1,4 +1,4 @@
-use super::{Isomorphic, Index, impl_ops_for_view, View};
+use super::{Isomorphic, Size, Index, impl_ops_for_view, View};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -42,9 +42,12 @@ impl<I: Index, T> Array<I, T> {
     /// ```
     pub fn from_fn(
         size: impl Isomorphic<I::Size>,
-        f: impl Fn(I) -> T,
+        mut f: impl FnMut(I) -> T,
     ) -> Self {
-        super::fn_view(size, f).collect()
+        let size = size.to_iso();
+        let mut items = Vec::with_capacity(I::length(size));
+        size.each(|i| items.push(f(i)));
+        Self::new_inner(size, items.into())
     }
 
     /// Returns the raw array elements.
