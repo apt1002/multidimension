@@ -8,6 +8,8 @@ use super::{div_mod, Isomorphic};
 /// Types that implement `Size` should implement [`Isomorphic`]. The simplest
 /// and best way to achieve this for a non-tuple type is to implement
 /// [`NonTuple`].
+///
+/// [`NonTuple`]: super::NonTuple
 pub trait Size: Debug + Copy + PartialEq {
     /// An abbreviation for `I::each(self, f)`.
     fn each<I: Index<Size=Self>>(self, f: impl FnMut(I)) { I::each(self, f); }

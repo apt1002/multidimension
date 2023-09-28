@@ -16,10 +16,10 @@
 //! tuple for the purposes of tuple isomorphism, you should consider just using
 //! a tuple instead.
 
-/// Implemented by [`Flatten`] types that have no tuple-like structure.
+/// Implemented by types that have no tuple-like structure.
 ///
-/// A type that implements `NonTuple` will automatically get implementations of
-/// `Flatten` and `Isomorphic`, as will tuple types that contain it.
+/// A type that implements `NonTuple` will automatically get an implementation
+/// of [`Isomorphic`], as will tuple types that contain it.
 pub trait NonTuple: Sized {}
 
 impl NonTuple for bool {}
@@ -133,18 +133,6 @@ impl<F: Flat,
         (f, (a, b, c))
     }
 }
-
-// ----------------------------------------------------------------------------
-
-/* This is unfortunately not possible.
- * https://github.com/rust-lang/rust/issues/108185
- *
- * Where we would like to write `T: Flattenable`, we instead write `T: Flatten`
- * and add `where` clauses to cope with the fallout.
-trait Flattenable: for<F: Flat> Flatten<F> {}
-
-impl<T: for<F: Flat> Flatten<F>> Flattenable for T {}
-*/
 
 // ----------------------------------------------------------------------------
 
