@@ -102,6 +102,9 @@ pub trait View: Sized {
     /// Materialises this `View` into a collection of type `A`, e.g. an
     /// [`Array`].
     ///
+    /// This method guarantees to call [`self.at()`] exactly once for each
+    /// index.
+    ///
     /// ```
     /// use multidimension::{Index, View, Array};
     /// let a: Array<_, _> = usize::all(5).collect();
@@ -109,10 +112,69 @@ pub trait View: Sized {
     /// ```
     ///
     /// [`Array`]: super::Array
+    /// [`self.at()`]: Self::at()
     fn collect<A>(&self) -> A where
         A: NewView<I=Self::I, T=Self::T>,
     {
         A::new_view(self.size(), |buffer| { self.each(|t| buffer.push(t)); })
+    }
+
+    /// Materialises this nested `View` into a collection of type `A`, e.g. an
+    /// [`Array`].
+    ///
+    /// [`Self::T`] must implement `View`. If `Self` is indexed by `Foo` and
+    /// `Self::T` is indexed by `Bar` then `A` will be indexed by `(Foo, Bar`).
+    ///
+    /// This method guarantees to call [`self.at()`] exactly once for each
+    /// index.
+    ///
+    /// # Panics
+    ///
+    /// Panics if any `Self::T` returned by `self.at()` has a [`size()`] that
+    /// differs from `size`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    ///
+    /// // `Behead(V)` hides the first element of a one-dimensional `View` `V`.
+    /// #[derive(Clone)]
+    /// pub struct Behead<V: View<I=usize>>(V);
+    /// impl<V: View<I=usize>> View for Behead<V> {
+    ///     type I = usize;
+    ///     type T = V::T;
+    ///     fn size(&self) -> usize { self.0.size() - 1 }
+    ///     fn at(&self, index: usize) -> Self::T { self.0.at(index + 1) }
+    /// }
+    ///
+    /// // Apply `Behead` to every row of a two-dimensional `View`.
+    /// let a: Array<(bool, usize), _> = <(bool, usize)>::all(4).collect();
+    /// assert_eq!(a.as_ref(), [
+    ///     (false, 0), (false, 1), (false, 2), (false, 3),
+    ///     (true , 0), (true , 1), (true , 2), (true , 3),
+    /// ]);
+    /// let a_beheaded: Array<(bool, usize), _> = a.rows().map(Behead).nested_collect(3);
+    /// assert_eq!(a_beheaded.as_ref(), [
+    ///     (false, 1), (false, 2), (false, 3),
+    ///     (true , 1), (true , 2), (true , 3),
+    /// ]);
+    /// ```
+    ///
+    /// [`Array`]: super::Array
+    /// [`self.at()`]: Self::at()
+    /// [`size()`]: View::size()
+    fn nested_collect<A>(
+        self,
+        size: <<Self::T as View>::I as Index>::Size,
+    ) -> A where
+        Self::T: View,
+        A: NewView<I=(Self::I, <Self::T as View>::I), T=<Self::T as View>::T>,
+    {
+        A::new_view((self.size(), size), |buffer| {
+            self.each(|v| {
+                assert_eq!(v.size(), size);
+                v.each(|t| buffer.push(t));
+            });
+        })
     }
 
     /// Apply `f` to every element of this `View` in turn.
@@ -183,19 +245,10 @@ pub trait View: Sized {
     /// let a: Array<_, _> = usize::all(5).map(|x| x*x).collect();
     /// assert_eq!(a.as_ref(), [0, 1, 4, 9, 16]);
     /// ```
-    fn map<U, F>(self, f: F) -> Map<Self, F> where
+    fn map<U: Clone, F>(self, f: F) -> Map<Self, F> where
         F: Fn(Self::T) -> U,
     {
         Map(self, f)
-    }
-
-    /// Creates a `View` that applies `f` to the elements of `Self` to obtain
-    /// `View`s of size `size` which are then concatenated. More precisely,
-    /// `self.flat_map(f).at((i, j))` returns `f(self.at(i)).at(j)`.
-    fn flat_map<V: View, F>(self, f: F, size: <V::I as Index>::Size) -> FlatMap<Self, V, F> where
-        F: Fn(Self::T) -> V,
-    {
-        FlatMap(self, f, size)
     }
 
     /// Creates a `View` that uses `self` to select elements of `other`.
@@ -473,22 +526,6 @@ impl<V: View, U: Clone, F: Fn(V::T) -> U> View for Map<V, F> {
 }
 
 impl_ops_for_view!(Map<V, F>);
-
-// ----------------------------------------------------------------------------
-
-/// The return type of [`View::flat_map()`].
-#[derive(Debug, Copy, Clone)]
-pub struct FlatMap<V, W: View, F>(V, F, <W::I as Index>::Size);
-
-impl<V: View, W: View, F: Fn(V::T) -> W> View for FlatMap<V, W, F> where
-{
-    type I = (V::I, W::I);
-    type T = W::T;
-    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), self.2) }
-    fn at(&self, index: Self::I) -> Self::T { self.1(self.0.at(index.0)).at(index.1) }
-}
-
-impl_ops_for_view!(FlatMap<V, W: View, F>);
 
 // ----------------------------------------------------------------------------
 
