@@ -4,6 +4,41 @@ use std::ops::{Deref};
 
 use super::{Isomorphic, Index, Broadcast, impl_ops_for_view, Binary};
 
+/// A buffer that accumulates items of type `T`.
+pub trait Push<T> {
+    /// Append `t` to `self`.
+    fn push(&mut self, t: T);
+}
+
+// ----------------------------------------------------------------------------
+
+/// Construct a multi-dimensional collection. This is used to implement
+/// [`View::collect()`].
+///
+/// The collection must implement `View`. The index type will be
+/// [`View::I`] and the element type will be [`View::T`].
+pub trait NewView: View {
+    /// The type of a partially constructed `Self`.
+    type Buffer: Push<Self::T>;
+
+    /// Construct a `Self` of size `size`.
+    ///
+    /// - callback - This will be called once, passing a `Self::Buffer` large
+    /// enough to hold `size` items. It must fill the buffer by calling
+    /// `Push::push()` once for each item. The items must be pushed in the
+    /// order defined by `<Self::I as Index>::to_usize()`.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `callback` does, or if it pushes the wrong number of items.
+    fn new_view(
+        size: <Self::I as Index>::Size,
+        callback: impl FnOnce(&mut Self::Buffer),
+    ) -> Self;
+}
+
+// ----------------------------------------------------------------------------
+
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
 ///
@@ -74,8 +109,10 @@ pub trait View: Sized {
     /// ```
     ///
     /// [`Array`]: super::Array
-    fn collect<A: FromView<Self::I, Self::T>>(&self) -> A {
-        A::from_view(self)
+    fn collect<A>(&self) -> A where
+        A: NewView<I=Self::I, T=Self::T>,
+    {
+        A::new_view(self.size(), |buffer| { self.each(|t| buffer.push(t)); })
     }
 
     /// Apply `f` to every element of this `View` in turn.
@@ -651,13 +688,6 @@ impl<T: Clone> View for Scalar<T> {
 }
 
 impl_ops_for_view!(Scalar<T: Clone>);
-
-// ----------------------------------------------------------------------------
-
-/// Construct a collection from a `View`.
-pub trait FromView<I: Index, T> {
-    fn from_view<V: View<I=I, T=T>>(v: &V) -> Self;
-}
 
 // ----------------------------------------------------------------------------
 
