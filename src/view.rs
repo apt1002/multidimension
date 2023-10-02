@@ -264,6 +264,45 @@ pub trait View: Sized {
         Compose(self, other)
     }
 
+    /// Replace an axis [`Index`]ed by `usize` with one indexed by `X`.
+    ///
+    /// - `from_length` - a function to compute the `X::Size` of the new axis,
+    ///   given the `usize::Size` of the old one.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<(usize, usize, usize), &str> = Array::new((3, 2, 1), ["A", "a", "B", "b", "C", "c"]);
+    /// let b: Array<(usize, bool, usize), &str> = (&a).from_usize::<usize, bool, usize>(|_| ()).collect();
+    /// assert_eq!(b.at((2, true, 0)), a.at((2, 1, 0)));
+    /// ```
+    fn from_usize<I: Index, X: Index, J: Index>(
+        self,
+        from_length: impl FnOnce(usize) -> X::Size,
+    ) -> FromUsize<Self, I, X, J> where
+        Self::I: Isomorphic<(I, usize, J)>,
+        <Self::I as Index>::Size: Isomorphic<<(I, usize, J) as Index>::Size>,
+    {
+        let (_, old_size, _) = self.size().to_iso();
+        let size = from_length(old_size);
+        assert_eq!(X::length(size), old_size);
+        FromUsize(self, size, PhantomData)
+    }
+
+    /// Replace an axis [`Index`]ed by `X` with one indexed by `usize`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<(usize, bool, usize), &str> = Array::new((3, (), 1), ["A", "a", "B", "b", "C", "c"]);
+    /// let b: Array<(usize, usize, usize), &str> = (&a).to_usize::<usize, bool, usize>().collect();
+    /// assert_eq!(b.at((2, 1, 0)), a.at((2, true, 0)));
+    /// ```
+    fn to_usize<I: Index, X: Index, J: Index>(self) -> ToUsize<Self, I, X, J> where
+        Self::I: Isomorphic<(I, X, J)>,
+        <Self::I as Index>::Size: Isomorphic<<(I, X, J) as Index>::Size>,
+    {
+        ToUsize(self, PhantomData)
+    }
+
     /// Creates a view such that `at((i, x, j))` gives
     /// `self.at((i, other.at(x), j))`.
     ///
@@ -541,6 +580,58 @@ impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
 }
 
 impl_ops_for_view!(Compose<V, W>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::from_usize()`]
+#[derive(Debug, Copy, Clone)]
+pub struct FromUsize<V, I, X: Index, J>(V, X::Size, PhantomData<(I, J)>);
+
+impl<V: View, I: Index, X: Index, J: Index> View for FromUsize<V, I, X, J> where
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<<(I, usize, J) as Index>::Size>,
+{
+    type I = (I, X, J);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i_size, _, j_size) = self.0.size().to_iso();
+        (i_size, self.1, j_size)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        self.0.at(V::I::from_iso((index.0, index.1.to_usize(self.1), index.2)))
+    }
+}
+
+impl_ops_for_view!(FromUsize<V, I, X: Index, J>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::to_usize()`]
+#[derive(Debug, Copy, Clone)]
+pub struct ToUsize<V, I, X, J>(V, PhantomData<(I, X, J)>);
+
+impl<V: View, I: Index, X: Index, J: Index> View for ToUsize<V, I, X, J> where
+    V::I: Isomorphic<(I, X, J)>,
+    <V::I as Index>::Size: Isomorphic<<(I, X, J) as Index>::Size>,
+{
+    type I = (I, usize, J);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i_size, x_size, j_size) = self.0.size().to_iso();
+        (i_size, X::length(x_size), j_size)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        let (q, x) = X::from_usize(self.0.size().to_iso().1, index.1);
+        assert_eq!(q, 0);
+        self.0.at(V::I::from_iso((index.0, x, index.2)))
+    }
+}
+
+impl_ops_for_view!(ToUsize<V, I, X, J>);
 
 // ----------------------------------------------------------------------------
 
