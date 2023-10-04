@@ -27,6 +27,7 @@ impl Index for usize {
 
 /// An `usize`-like [`Index`] with a compile-time constant size.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Fixed<const SIZE: usize>(pub usize);
 
 impl<const SIZE: usize> NonTuple for Fixed<SIZE> {}
@@ -56,6 +57,7 @@ fn reverse(size: usize, index: usize) -> usize {
 
 /// A `usize`-like [`Index`] that counts backwards.
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq, PartialOrd, Ord)]
+#[repr(transparent)]
 pub struct Reversed(pub usize);
 
 impl NonTuple for Reversed {}

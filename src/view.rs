@@ -806,6 +806,7 @@ impl_ops_for_view!(Columns<V, I, J>);
 
 /// A 0-dimensional [`View`].
 #[derive(Debug, Copy, Clone)]
+#[repr(transparent)]
 pub struct Scalar<T: Clone>(pub T);
 
 impl<T: Clone> View for Scalar<T> {
