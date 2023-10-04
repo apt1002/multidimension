@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 
-use super::{div_mod, Isomorphic};
+use super::{div_mod, Coated, Isomorphic};
 
 /// The run-time size of an array axis. An array axis with a compile-time
 /// constant size can simply use `()`, which implements this trait.
@@ -20,6 +20,7 @@ impl Size for () {}
 impl<A: Size> Size for (A,) {}
 impl<A: Size, B: Size> Size for (A, B) {}
 impl<A: Size, B: Size, C: Size> Size for (A, B, C) {}
+impl<S: Size> Size for Coated<S> {}
 
 // ----------------------------------------------------------------------------
 
@@ -143,6 +144,21 @@ impl<I: Index, J: Index, K: Index> Index for (I, J, K) {
     }
 }
 
+impl<I: Index> Index for Coated<I> {
+    type Size = Coated<I::Size>;
+    fn length(size: Self::Size) -> usize { I::length(size.0) }
+    fn to_usize(self, size: Self::Size) -> usize { self.0.to_usize(size.0) }
+
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
+        let (q, r) = I::from_usize(size.0, index);
+        (q, Coated(r))
+    }
+
+    fn each(size: Self::Size, mut f: impl FnMut(Self)) {
+        I::each(size.0, |i| f(Coated(i)));
+    }
+}
+
 // ----------------------------------------------------------------------------
 
 /// The return type of [`Index::all()`].
@@ -193,7 +209,7 @@ impl<I: StaticIndex> Index for I {
 
     // Compiler might work this out by itself, but why leave it uncertain?
     fn each(_: Self::Size, mut f: impl FnMut(Self)) {
-	for i in 0..Self::length(()) { f(StaticIndex::from_usize(i)); }
+    	for i in 0..Self::length(()) { f(StaticIndex::from_usize(i)); }
     }
 }
 
