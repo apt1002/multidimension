@@ -328,6 +328,8 @@ pub trait View: Sized {
 
     /// Insert an axis of type `J` and length `1`.
     ///
+    /// - size - the size of the new axis. `J::length(size)` must be `1`.
+    ///
     /// ```
     /// use multidimension::{Index, View, Array};
     /// let a: Array<(bool, bool), &str> = Array::new(((), ()), ["A", "a", "B", "b"]);
@@ -341,6 +343,27 @@ pub trait View: Sized {
     {
         assert_eq!(J::length(size), 1);
         InsertOne(self, size, PhantomData)
+    }
+
+    /// Remove an axis of type `J` and length `1`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<(bool, usize, bool), &str> = Array::new(((), 1, ()), ["A", "a", "B", "b"]);
+    /// let b: Array<(bool, bool), &str> = a.remove_one::<bool, usize, bool>().collect();
+    /// assert_eq!(b.size(), ((), ()));
+    /// assert_eq!(b.as_ref(), ["A", "a", "B", "b"]);
+    /// ```
+    fn remove_one<I: Index, J: Index, K: Index>(self) -> RemoveOne<Self, I, J, K> where
+        Self::I: Isomorphic<(I, J, K)>,
+        <Self::I as Index>::Size: Isomorphic<(I::Size, J::Size, K::Size)>,
+    {
+        let (_, j_size, _) = self.size().to_iso();
+        assert_eq!(J::length(j_size), 1);
+        let (q, j) = J::from_usize(j_size, 0);
+        assert_eq!(q, 0);
+        assert_eq!(j.to_usize(j_size), 0);
+        RemoveOne(self, j, PhantomData)
     }
 
     /// Creates a view such that `at((i, x, j))` gives
@@ -731,6 +754,32 @@ impl<V: View, I: Index, J: Index, K: Index> View for InsertOne<V, I, J, K> where
 }
 
 impl_ops_for_view!(InsertOne<V, I, J: Index, K>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::insert_one()`]
+#[derive(Debug, Copy, Clone)]
+pub struct RemoveOne<V, I, J, K>(V, J, PhantomData<(I, K)>);
+
+impl<V: View, I: Index, J: Index, K: Index> View for RemoveOne<V, I, J, K> where
+    V::I: Isomorphic<(I, J, K)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, J::Size, K::Size)>,
+{
+    type I = (I, K);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i, _, k) = self.0.size().to_iso();
+        (i, k)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        let (i, k) = index;
+        self.0.at(Isomorphic::from_iso((i, self.1, k)))
+    }
+}
+
+impl_ops_for_view!(RemoveOne<V, I, J, K>);
 
 // ----------------------------------------------------------------------------
 
