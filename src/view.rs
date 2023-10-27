@@ -326,6 +326,23 @@ pub trait View: Sized {
         ToUsize(self, PhantomData)
     }
 
+    /// Insert an axis of type `J` and length `1`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<(bool, bool), &str> = Array::new(((), ()), ["A", "a", "B", "b"]);
+    /// let b: Array<(bool, usize, bool), &str> = a.insert_one::<bool, usize, bool>(1).collect();
+    /// assert_eq!(b.size(), ((), 1, ()));
+    /// assert_eq!(b.as_ref(), ["A", "a", "B", "b"]);
+    /// ```
+    fn insert_one<I: Index, J: Index, K: Index>(self, size: J::Size) -> InsertOne<Self, I, J, K> where
+        Self::I: Isomorphic<(I, K)>,
+        <Self::I as Index>::Size: Isomorphic<(I::Size, K::Size)>,
+    {
+        assert_eq!(J::length(size), 1);
+        InsertOne(self, size, PhantomData)
+    }
+
     /// Creates a view such that `at((i, x, j))` gives
     /// `self.at((i, other.at(x), j))`.
     ///
@@ -687,6 +704,33 @@ impl<V: View, I: Index, X: Index, J: Index> View for ToUsize<V, I, X, J> where
 }
 
 impl_ops_for_view!(ToUsize<V, I, X, J>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::insert_one()`]
+#[derive(Debug, Copy, Clone)]
+pub struct InsertOne<V, I, J: Index, K>(V, J::Size, PhantomData<(I, K)>);
+
+impl<V: View, I: Index, J: Index, K: Index> View for InsertOne<V, I, J, K> where
+    V::I: Isomorphic<(I, K)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, K::Size)>,
+{
+    type I = (I, J, K);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i, k) = self.0.size().to_iso();
+        (i, self.1, k)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        let (i, j, k) = index;
+        assert_eq!(j.to_usize(self.1), 0);
+        self.0.at(Isomorphic::from_iso((i, k)))
+    }
+}
+
+impl_ops_for_view!(InsertOne<V, I, J: Index, K>);
 
 // ----------------------------------------------------------------------------
 
