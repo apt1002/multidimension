@@ -264,6 +264,29 @@ pub trait View: Sized {
         Compose(self, other)
     }
 
+    /// Concatenates `self` with `other` along an axis of type `usize`.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array};
+    /// let a: Array<usize, &str> = Array::new(2, ["apple", "body"]);
+    /// let b: Array<usize, &str> = Array::new(2, ["crane", "dump"]);
+    /// let ab: Array<usize, &str> = a.concat::<_, (), ()>(b).iso().collect();
+    /// assert_eq!(ab.as_ref(), ["apple", "body", "crane", "dump"]);
+    /// ```
+    fn concat<V: View<T=Self::T>, I: Index, J: Index>(self, other: V)
+    -> Concat<Self, V, I, J> where
+        Self::I: Isomorphic<(I, usize, J)>,
+        <Self::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+        V::I: Isomorphic<(I, usize, J)>,
+        <V::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+    {
+        let (self_i, self_size, self_j) = self.size().to_iso();
+        let (other_i, _other_size, other_j) = other.size().to_iso();
+        assert_eq!(self_i, other_i);
+        assert_eq!(self_j, other_j);
+        Concat(self, other, self_size, PhantomData)
+    }
+
     /// Replace an axis [`Index`]ed by `usize` with one indexed by `X`.
     ///
     /// - `from_length` - a function to compute the `X::Size` of the new axis,
@@ -580,6 +603,38 @@ impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
 }
 
 impl_ops_for_view!(Compose<V, W>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::concat()`].
+#[derive(Debug, Copy, Clone)]
+pub struct Concat<V, W, I, J>(V, W, usize, PhantomData<(I, J)>);
+
+impl<V: View, W: View<T=V::T>, I: Index, J: Index> View for Concat<V, W, I, J> where
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+    W::I: Isomorphic<(I, usize, J)>,
+    <W::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+{
+    type I = (I, usize, J);
+    type T = V::T;
+
+    fn size(&self) -> <Self::I as Index>::Size {
+        let (i, w_size, j) = self.1.size().to_iso();
+        (i, self.2 + w_size, j)
+    }
+
+    fn at(&self, index: Self::I) -> Self::T {
+        let (i, index, j) = index;
+        if index < self.2 {
+            self.0.at(Isomorphic::from_iso((i, index, j)))
+        } else {
+            self.1.at(Isomorphic::from_iso((i, index - self.2, j)))
+        }
+    }
+}
+
+impl_ops_for_view!(Concat<V, W, I, J>);
 
 // ----------------------------------------------------------------------------
 
