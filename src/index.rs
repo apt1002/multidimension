@@ -224,3 +224,37 @@ impl StaticIndex for bool {
     fn to_usize(self) -> usize { self as usize }
     fn from_usize(index: usize) -> Self { index != 0 }
 }
+
+// ----------------------------------------------------------------------------
+
+impl<I: Index> Index for Option<I> {
+    type Size = I::Size;
+
+    fn length(size: Self::Size) -> usize { 1 + I::length(size) }
+
+    fn to_usize(self, size: Self::Size) -> usize {
+        match self {
+            None => 0,
+            Some(i) => 1 + i.to_usize(size),
+        }
+    }
+
+    fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
+        let (q, r) = div_mod(index, Self::length(size));
+        (q, r.checked_sub(1).map(|some_index| {
+            let (zero, r) = I::from_usize(size, some_index);
+            assert_eq!(zero, 0);
+            r
+        }))
+        
+    }
+
+    /// Equivalent to, but often more efficient than,
+    /// ```text
+    /// for i in 0..Self::length(size) { f(Self::from_usize(size, i).1); }
+    /// ```
+    fn each(size: Self::Size, mut f: impl FnMut(Self)) {
+        f(None);
+        I::each(size, |index| f(Some(index)));
+    }
+}
