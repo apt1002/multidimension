@@ -11,12 +11,14 @@ impl<A: Index, B: Index, C: Index> Expand for (A, B, C) {}
 // ----------------------------------------------------------------------------
 
 /// `Self` implements `Broadcast<Other>` to say what happens when you zip a
-/// `View` indexed by `Self` with one indexed by `Other`.
+/// [`View`] indexed by `Self` with one indexed by `Other`.
 ///
 /// Roughly speaking, each axis of `self` must be the same type and size as the
 /// corresponding axis of `other`, or one of them must be `()`. In the latter
 /// case, the sole array element of the smaller `View` will be replicated to
 /// fill out the size of the larger `View`. This is called "broadcasting".
+///
+/// [`View`]: super::View
 pub trait Broadcast<Other: Index>: Index {
     /// The Resulting `Index` type.
     type Result: Index;

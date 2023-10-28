@@ -25,7 +25,7 @@
 //! `Index` types, elements are replicated as necessary using a [`Broadcast`]
 //! rule, similarly to [`NumPy`](https://numpy.org/).
 //!
-//! `Index`es are often tuples or nested tuples. Trait `Isomorphic`
+//! `Index`es are often tuples or nested tuples. Trait [`Isomorphic`]
 //! defines conversions between different tuple structures. For example,
 //! `((A,), B, C)` implements `Isomorphic<(A, (B, C))>`. Methods of `View`
 //! exploit tuple isomorphism to ergonomically express which groups of

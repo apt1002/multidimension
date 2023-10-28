@@ -1,7 +1,7 @@
 //! Generic programming over binary arithmetic operators.
 //!
 //! For each binary operator in [`std::ops`] this module contains a type of the
-//! same name that cannot be instantiated and that implements `Binary`. For
+//! same name that cannot be instantiated and that implements [`Binary`]. For
 //! example, [`Add`] corresponds to [`std::ops::Add`]. This can be passed as a
 //! type parameter to generic code, e.g. [`View::binary()`].
 //!
@@ -119,9 +119,12 @@ impl<T, U> Binary<T, U> for Shr where T: std::ops::Shr<U> {
 
 // ----------------------------------------------------------------------------
 
-/// Implement one of the [`std::ops`] traits for a type that implements `View`.
+/// Implement one of the [`std::ops`] traits for a type that implements
+/// [`View`].
 ///
 /// You perhaps want to use [`impl_ops_for_view`] instead, which calls this.
+///
+/// [`View`]: super::View
 ///
 /// ```
 /// use multidimension::{Index, View, impl_op_for_view};
