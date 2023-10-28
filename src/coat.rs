@@ -1,6 +1,6 @@
 use super::{NonTuple};
 
-/// `Coated<I>` behaves like `I` in most respects, but implements `NonTuple`.
+/// `Coated<I>` behaves like `I` in most respects, but implements [`NonTuple`].
 #[derive(Debug, Default, Copy, Clone, Hash, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Coated<I>(pub I);
@@ -19,14 +19,9 @@ impl<I> std::ops::DerefMut for Coated<I> {
 // ----------------------------------------------------------------------------
 
 /// Implemented by types that differ from `T` by adding or removing at most one
-/// level of `Coated`.
+/// level of [`Coated`].
 pub trait Coat<I: Coat<Self>>: Sized {
     fn coat(self) -> I;
-    fn uncoat(i: I) -> Self { i.coat() }
-}
-
-impl<I: NonTuple> Coat<Self> for I {
-    fn coat(self) -> Self { self }
 }
 
 impl<I> Coat<I> for Coated<I> {
@@ -35,6 +30,10 @@ impl<I> Coat<I> for Coated<I> {
 
 impl<I> Coat<Coated<I>> for I {
     fn coat(self) -> Coated<I> { Coated(self) }
+}
+
+impl<I: NonTuple> Coat<Self> for I {
+    fn coat(self) -> Self { self }
 }
 
 impl Coat<()> for () {

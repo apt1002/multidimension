@@ -2,7 +2,7 @@ use std::fmt::{Debug};
 use std::marker::{PhantomData};
 use std::ops::{Deref};
 
-use super::{Isomorphic, Index, Broadcast, impl_ops_for_view, Binary};
+use super::{Isomorphic, Coat as _, Index, Broadcast, impl_ops_for_view, Binary};
 
 /// A buffer that accumulates items of type `T`.
 pub trait Push<T> {
@@ -460,6 +460,50 @@ pub trait View: Sized {
         Zip(self, other, PhantomData)
     }
 
+    /// Wrap some of the [`Index`]es of this `View` in [`Coated`].
+    ///
+    /// Coating `Index` types prevents [`Isomorphic`] from looking inside them.
+    /// This is mostly useful for generic functions that would not otherwise
+    /// compile, because they don't know at compile time the internal structure
+    /// of their generic type parameters.
+    ///
+    /// [`Coated`]: super::Coated
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Array, Coated};
+    ///
+    /// /// Halve the length of the second axis by pairing up the elements.
+    /// fn group_pairs<I: Index, T: Clone>(
+    ///     view: impl View<I=(I, usize), T=T>,
+    /// ) -> impl View<I=(I, usize, bool), T=T> {
+    ///     let view = view.coat::<(Coated<I>, usize)>();
+    ///     // Next two lines would not compile without the `Coated` wrapper.
+    ///     let view = view.from_usize::<Coated<I>, (usize, bool), ()>(|length| (length / 2, ()));
+    ///     let view = view.iso::<(Coated<I>, usize, bool)>();
+    ///     let view = view.coat::<(I, usize, bool)>();
+    ///     view
+    /// }
+    ///
+    /// let a: Array<(usize, usize), &str> = Array::new((2, 6), [
+    ///     "a", "b", "c", "d", "e", "f",
+    ///     "A", "B", "C", "D", "E", "F",
+    /// ]);
+    /// let b: Array<(usize, usize, bool), &str> = group_pairs(a).collect();
+    /// assert_eq!(b.size(), (2, 3, ()));
+    /// assert_eq!(b.as_ref(), [
+    ///     "a", "b",   "c", "d",   "e", "f",
+    ///     "A", "B",   "C", "D",   "E", "F",
+    /// ]);
+    /// ```
+    fn coat<I: Index>(self) -> Coat<Self, I> where
+        I: super::Coat<Self::I>,
+        Self::I: super::Coat<I>,
+        I::Size: super::Coat<<Self::I as Index>::Size>,
+        <Self::I as Index>::Size: super::Coat<I::Size>,
+    {
+        Coat(self, PhantomData)
+    }
+
     /// Change the index type of this `View` to an [`Isomorphic`] type.
     fn iso<J: Index>(self) -> Iso<Self, J> where
         J: Isomorphic<Self::I>,
@@ -833,6 +877,26 @@ impl<V: View, W: View, B> View for Zip<V, W, B> where
 }
 
 impl_ops_for_view!(Zip<V, W, B>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::coat()`].
+#[derive(Debug, Copy, Clone)]
+pub struct Coat<V, I>(V, PhantomData<I>);
+
+impl<V: View, I: Index> View for Coat<V, I> where
+    I: super::Coat<V::I>,
+    V::I: super::Coat<I>,
+    I::Size: super::Coat<<V::I as Index>::Size>,
+    <V::I as Index>::Size: super::Coat<I::Size>,
+{
+    type I = I;
+    type T = V::T;
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size().coat() }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(index.coat()) }
+}
+
+impl_ops_for_view!(Coat<V, I>);
 
 // ----------------------------------------------------------------------------
 
