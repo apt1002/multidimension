@@ -68,10 +68,12 @@ pub trait Flatten<F: Flat=()>: Sized {
 impl<F: Flat, T: NonTuple> Flatten<F> for T {
     type Flat = (F, Self);
 
+    #[inline(always)]
     fn push(self, f: F) -> Self::Flat {
         (f, self)
     }
 
+    #[inline(always)]
     fn pop(f: Self::Flat) -> (F, Self) {
         (f.0, f.1)
     }
@@ -80,18 +82,22 @@ impl<F: Flat, T: NonTuple> Flatten<F> for T {
 impl<F: Flat> Flatten<F> for () {
     type Flat = F;
 
+    #[inline(always)]
     fn push(self, f: F) -> Self::Flat { f }
 
+    #[inline(always)]
     fn pop(f: Self::Flat) -> (F, Self) { (f, ()) }
 }
 
 impl<F: Flat, A: Flatten<F>> Flatten<F> for (A,) {
     type Flat = <A as Flatten<F>>::Flat;
 
+    #[inline(always)]
     fn push(self, f: F) -> Self::Flat {
         self.0.push(f)
     }
 
+    #[inline(always)]
     fn pop(f: Self::Flat) -> (F, Self) {
         let (f, a) = A::pop(f);
         (f, (a,))
@@ -104,10 +110,12 @@ impl<F: Flat,
 > Flatten<F> for (A, B) {
     type Flat = <B as Flatten<<A as Flatten<F>>::Flat>>::Flat;
 
+    #[inline(always)]
     fn push(self, f: F) -> Self::Flat {
         self.1.push(self.0.push(f))
     }
 
+    #[inline(always)]
     fn pop(f: Self::Flat) -> (F, Self) {
         let (f, b) = <B as Flatten<_>>::pop(f);
         let (f, a) = <A as Flatten<_>>::pop(f);
@@ -122,10 +130,12 @@ impl<F: Flat,
 > Flatten<F> for (A, B, C) {
     type Flat = <C as Flatten<<B as Flatten<<A as Flatten<F>>::Flat>>::Flat>>::Flat;
 
+    #[inline(always)]
     fn push(self, f: F) -> Self::Flat {
         self.2.push(self.1.push(self.0.push(f)))
     }
 
+    #[inline(always)]
     fn pop(f: Self::Flat) -> (F, Self) {
         let (f, c) = <C as Flatten<_>>::pop(f);
         let (f, b) = <B as Flatten<_>>::pop(f);
@@ -136,10 +146,12 @@ impl<F: Flat,
 
 // ----------------------------------------------------------------------------
 
+#[inline(always)]
 fn to_flat<T: Flatten>(t: T) -> T::Flat {
     t.push(())
 }
 
+#[inline(always)]
 fn from_flat<T: Flatten>(f: T::Flat) -> T {
     let ((), t) = T::pop(f);
     t
@@ -157,7 +169,9 @@ pub trait Isomorphic<T=Self> {
 }
 
 impl<T: Flatten, U: Flatten<Flat=T::Flat>> Isomorphic<T> for U {
+    #[inline(always)]
     fn from_iso(t: T) -> Self { from_flat(to_flat(t)) }
+    #[inline(always)]
     fn to_iso(self) -> T { from_flat(to_flat(self)) }
 }
 

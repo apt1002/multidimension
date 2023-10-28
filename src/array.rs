@@ -76,12 +76,14 @@ impl<I: Index, T> std::convert::AsMut<[T]> for Array<I, T> {
 impl<I: Index, T> std::ops::Index<I> for Array<I, T> {
     type Output = T;
 
+    #[inline(always)]
     fn index(&self, index: I) -> &Self::Output {
         &self.items[index.to_usize(self.size)]
     }
 }
 
 impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
+    #[inline(always)]
     fn index_mut(&mut self, index: I) -> &mut Self::Output {
         &mut self.items[index.to_usize(self.size)]
     }
@@ -90,8 +92,11 @@ impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
 impl<I: Index, T: Clone> View for Array<I, T> {
     type I = I;
     type T = T;
+    #[inline(always)]
     fn size(&self) -> I::Size { self.size }
+    #[inline(always)]
     fn len(&self) -> usize { self.as_ref().len() }
+    #[inline(always)]
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
@@ -123,6 +128,10 @@ pub struct ArrayView<'a, I: Index, T>(&'a Array<I, T>);
 impl<'a, I: Index, T: Clone> View for ArrayView<'a, I, T> {
     type I = I;
     type T = &'a T;
+    #[inline(always)]
     fn size(&self) -> I::Size { self.0.size() }
+    #[inline(always)]
+    fn len(&self) -> usize { self.0.len() }
+    #[inline(always)]
     fn at(&self, index: I) -> &'a T { &self.0[index] }
 }

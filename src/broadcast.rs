@@ -33,23 +33,29 @@ pub trait Broadcast<Other: Index>: Index {
 impl<I: Index + NonTuple> Broadcast<I> for I {
     type Result = I;
 
+    #[inline(always)]
     fn size(self_size: <I as Index>::Size, other_size: <I as Index>::Size) -> <I as Index>::Size {
         if self_size != other_size { panic!("Unequal sizes"); }
         self_size
     }
 
+    #[inline(always)]
     fn index(index: I) -> (I, I) { (index, index) }
 }
 
 impl<J: Expand> Broadcast<J> for () {
     type Result = J;
+    #[inline(always)]
     fn size(_: (), other_size: J::Size) -> J::Size { other_size }
+    #[inline(always)]
     fn index(index: J) -> ((), J) { ((), index) }
 }
 
 impl<I: Expand> Broadcast<()> for I {
     type Result = I;
+    #[inline(always)]
     fn size(self_size: I::Size, _: ()) -> I::Size { self_size }
+    #[inline(always)]
     fn index(index: I) -> (I, ()) { (index, ()) }
 }
 
@@ -62,6 +68,7 @@ impl<
         <IA as Broadcast<JA>>::Result,
     );
 
+    #[inline(always)]
     fn size(
         i_size: (IA::Size,),
         j_size: (JA::Size,),
@@ -71,6 +78,7 @@ impl<
         )
     }
 
+    #[inline(always)]
     fn index(index: Self::Result) -> ((IA,), (JA,)) {
         let (ia_index, ja_index) = <IA as Broadcast<JA>>::index(index.0);
         (
@@ -92,6 +100,7 @@ impl<
         <IB as Broadcast<JB>>::Result,
     );
 
+    #[inline(always)]
     fn size(
         i_size: (IA::Size, IB::Size),
         j_size: (JA::Size, JB::Size),
@@ -102,6 +111,7 @@ impl<
         )
     }
 
+    #[inline(always)]
     fn index(index: Self::Result) -> ((IA, IB), (JA, JB)) {
         let (ia_index, ja_index) = <IA as Broadcast<JA>>::index(index.0);
         let (ib_index, jb_index) = <IB as Broadcast<JB>>::index(index.1);
@@ -127,6 +137,7 @@ impl<
         <IC as Broadcast<JC>>::Result,
     );
 
+    #[inline(always)]
     fn size(
         i_size: (IA::Size, IB::Size, IC::Size),
         j_size: (JA::Size, JB::Size, JC::Size),
@@ -138,6 +149,7 @@ impl<
         )
     }
 
+    #[inline(always)]
     fn index(index: Self::Result) -> ((IA, IB, IC), (JA, JB, JC)) {
         let (ia_index, ja_index) = <IA as Broadcast<JA>>::index(index.0);
         let (ib_index, jb_index) = <IB as Broadcast<JB>>::index(index.1);

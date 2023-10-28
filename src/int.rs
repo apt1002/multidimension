@@ -9,8 +9,10 @@ use super::{div_mod, NonTuple, Index};
 impl Index for usize {
     type Size = usize;
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize { size }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize {
         assert!(self < size, "Index {:?} is out of bounds for size {:?}", self, size);
         self
@@ -35,8 +37,10 @@ impl<const SIZE: usize> NonTuple for Fixed<SIZE> {}
 impl<const SIZE: usize> Index for Fixed<SIZE> {
     type Size = ();
 
+    #[inline(always)]
     fn length(_: ()) -> usize { SIZE }
 
+    #[inline(always)]
     fn to_usize(self, _: ()) -> usize { self.0 }
 
     fn from_usize(_: Self::Size, index: usize) -> (usize, Self) {
@@ -65,8 +69,10 @@ impl NonTuple for Reversed {}
 impl Index for Reversed {
     type Size = usize;
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize { size }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize { reverse(size, self.0) }
 
     fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {

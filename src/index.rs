@@ -72,10 +72,12 @@ pub trait Index: Debug + Copy + PartialEq {
 impl<I: Index> Index for (I,) {
     type Size = (I::Size,);
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize {
         I::length(size.0)
     }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize {
         let index = 0;
         let index = index * I::length(size.0) + self.0.to_usize(size.0);
@@ -95,10 +97,12 @@ impl<I: Index> Index for (I,) {
 impl<I: Index, J: Index> Index for (I, J) {
     type Size = (I::Size, J::Size);
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize {
         I::length(size.0) * J::length(size.1)
     }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize {
         let index = 0;
         let index = index * I::length(size.0) + self.0.to_usize(size.0);
@@ -120,10 +124,12 @@ impl<I: Index, J: Index> Index for (I, J) {
 impl<I: Index, J: Index, K: Index> Index for (I, J, K) {
     type Size = (I::Size, J::Size, K::Size);
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize {
         I::length(size.0) * J::length(size.1) * K::length(size.2)
     }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize {
         let index = 0;
         let index = index * I::length(size.0) + self.0.to_usize(size.0);
@@ -146,7 +152,9 @@ impl<I: Index, J: Index, K: Index> Index for (I, J, K) {
 
 impl<I: Index> Index for Coated<I> {
     type Size = Coated<I::Size>;
+    #[inline(always)]
     fn length(size: Self::Size) -> usize { I::length(size.0) }
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize { self.0.to_usize(size.0) }
 
     fn from_usize(size: Self::Size, index: usize) -> (usize, Self) {
@@ -168,7 +176,9 @@ pub struct All<I: Index>(I::Size);
 impl<I: Index> super::View for All<I> {
     type I = I;
     type T = I;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0 }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { index }
 }
 
@@ -195,6 +205,7 @@ impl<I: StaticIndex> Index for I {
     #[inline(always)] // Want the caller to see this as constant.
     fn length((): Self::Size) -> usize { Self::ALL.len() }
 
+    #[inline(always)]
     fn to_usize(self, (): Self::Size) -> usize {
         let index = StaticIndex::to_usize(self);
         assert_eq!(self, Self::ALL[index]);
@@ -230,8 +241,10 @@ impl StaticIndex for bool {
 impl<I: Index> Index for Option<I> {
     type Size = I::Size;
 
+    #[inline(always)]
     fn length(size: Self::Size) -> usize { 1 + I::length(size) }
 
+    #[inline(always)]
     fn to_usize(self, size: Self::Size) -> usize {
         match self {
             None => 0,

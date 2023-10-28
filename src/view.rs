@@ -604,7 +604,9 @@ pub trait View: Sized {
 impl<V: View, T: Deref<Target=V>> View for T {
     type I = V::I;
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { V::size(self) }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { V::at(self, index) }
 }
 
@@ -617,7 +619,9 @@ pub struct Cloned<V>(V);
 impl<'t, T: 't + Clone, V: View<T=&'t T>> View for Cloned<V> {
     type I = V::I;
     type T = T;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.0.at(index).clone() }
 }
 
@@ -632,7 +636,9 @@ pub struct Enumerate<V>(V);
 impl<V: View> View for Enumerate<V> {
     type I = V::I;
     type T = (V::I, V::T);
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { (index, self.0.at(index)) }
 }
 
@@ -650,7 +656,9 @@ impl<V: View> View for Diagonal<V> where
 {
     type I = (V::I, V::I);
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), self.0.size()) }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         if index.0 == index.1 { self.0.at(index.0) } else { Default::default() }
     }
@@ -667,7 +675,9 @@ pub struct Map<V, F>(V, F);
 impl<V: View, U: Clone, F: Fn(V::T) -> U> View for Map<V, F> {
     type I = V::I;
     type T = U;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.1(self.0.at(index)) }
 }
 
@@ -682,7 +692,9 @@ pub struct Compose<V, W>(V, W);
 impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
     type I = V::I;
     type T = W::T;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.1.at(self.0.at(index)) }
 }
 
@@ -703,11 +715,13 @@ impl<V: View, W: View<T=V::T>, I: Index, J: Index> View for Concat<V, W, I, J> w
     type I = (I, usize, J);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i, w_size, j) = self.1.size().to_iso();
         (i, self.2 + w_size, j)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (i, index, j) = index;
         if index < self.2 {
@@ -733,11 +747,13 @@ impl<V: View, I: Index, X: Index, J: Index> View for FromUsize<V, I, X, J> where
     type I = (I, X, J);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i_size, _, j_size) = self.0.size().to_iso();
         (i_size, self.1, j_size)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         self.0.at(V::I::from_iso((index.0, index.1.to_usize(self.1), index.2)))
     }
@@ -758,11 +774,13 @@ impl<V: View, I: Index, X: Index, J: Index> View for ToUsize<V, I, X, J> where
     type I = (I, usize, J);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i_size, x_size, j_size) = self.0.size().to_iso();
         (i_size, X::length(x_size), j_size)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (q, x) = X::from_usize(self.0.size().to_iso().1, index.1);
         assert_eq!(q, 0);
@@ -785,11 +803,13 @@ impl<V: View, I: Index, J: Index, K: Index> View for InsertOne<V, I, J, K> where
     type I = (I, J, K);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i, k) = self.0.size().to_iso();
         (i, self.1, k)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (i, j, k) = index;
         assert_eq!(j.to_usize(self.1), 0);
@@ -812,11 +832,13 @@ impl<V: View, I: Index, J: Index, K: Index> View for RemoveOne<V, I, J, K> where
     type I = (I, K);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i, _, k) = self.0.size().to_iso();
         (i, k)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (i, k) = index;
         self.0.at(Isomorphic::from_iso((i, self.1, k)))
@@ -839,11 +861,13 @@ impl<V: View, I: Index, W: View, J: Index> View for MapAxis<V, I, W, J> where
     type I = (I, W::I, J);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         let (i_size, _, j_size) = self.0.size().to_iso();
         (i_size, self.2.size(), j_size)
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (i, x, j) = index;
         self.0.at(Isomorphic::from_iso((i, self.2.at(x), j)))
@@ -866,10 +890,12 @@ impl<V: View, W: View, B> View for Zip<V, W, B> where
     type I = <V::I as Broadcast<W::I>>::Result;
     type T = <B as Binary<V::T, W::T>>::Output;
 
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size {
         <V::I as Broadcast<W::I>>::size(self.0.size(), self.1.size())
     }
 
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
         let (v_index, w_index) = <V::I as Broadcast<W::I>>::index(index);
         B::call(self.0.at(v_index), self.1.at(w_index))
@@ -892,7 +918,9 @@ impl<V: View, I: Index> View for Coat<V, I> where
 {
     type I = I;
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size().coat() }
+    #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.0.at(index.coat()) }
 }
 
@@ -910,7 +938,9 @@ impl<V: View, J: Index> View for Iso<V, J> where
 {
     type I = J;
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> J::Size { Isomorphic::from_iso(self.0.size()) }
+    #[inline(always)]
     fn at(&self, index: J) -> Self::T { self.0.at(index.to_iso()) }
 }
 
@@ -929,11 +959,13 @@ impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X
     type I = (I, (X, Y), J);
     type T = V::T;
 
+    #[inline(always)]
     fn size(&self) -> (I::Size, (X::Size, Y::Size), J::Size) {
         let (i, (y, x), j) = Isomorphic::from_iso(self.0.size());
         (i, (x, y), j)
     }
 
+    #[inline(always)]
     fn at(&self, index: (I, (X, Y), J)) -> Self::T {
         let (i, (x, y), j) = index;
         self.0.at((i, (y, x), j).to_iso())
@@ -954,7 +986,9 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
 {
     type I = J;
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
+    #[inline(always)]
     fn at(&self, index: J) -> Self::T { self.0.at((self.1, index).to_iso()) }
 }
 
@@ -972,7 +1006,9 @@ impl<V: Copy + View, I: Index, J: Index> View for Rows<V, I, J> where
 {
     type I = I;
     type T = Row<V, I, J>;
+    #[inline(always)]
     fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
+    #[inline(always)]
     fn at(&self, index: I) -> Self::T { self.0.row(index) }
 }
 
@@ -990,7 +1026,9 @@ impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
 {
     type I = I;
     type T = V::T;
+    #[inline(always)]
     fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
+    #[inline(always)]
     fn at(&self, index: I) -> Self::T { self.0.at((index, self.2).to_iso()) }
 }
 
@@ -1008,7 +1046,9 @@ impl<V: Copy + View, I: Index, J: Index> View for Columns<V, I, J> where
 {
     type I = J;
     type T = Column<V, I, J>;
+    #[inline(always)]
     fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
+    #[inline(always)]
     fn at(&self, index: J) -> Self::T { self.0.column(index) }
 }
 
@@ -1024,7 +1064,9 @@ pub struct Scalar<T: Clone>(pub T);
 impl<T: Clone> View for Scalar<T> {
     type I = ();
     type T = T;
+    #[inline(always)]
     fn size(&self) -> () { () }
+    #[inline(always)]
     fn at(&self, _: ()) -> T { self.0.clone() }
 }
 

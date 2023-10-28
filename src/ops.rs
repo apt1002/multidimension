@@ -24,6 +24,7 @@ pub enum Pair {}
 
 impl<T, U> Binary<T, U> for Pair {
     type Output = (T, U);
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { (t, u) }
 }
 
@@ -33,6 +34,7 @@ pub enum Add {}
 
 impl<T, U> Binary<T, U> for Add where T: std::ops::Add<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.add(u) }
 }
 
@@ -42,6 +44,7 @@ pub enum Sub {}
 
 impl<T, U> Binary<T, U> for Sub where T: std::ops::Sub<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.sub(u) }
 }
 
@@ -51,6 +54,7 @@ pub enum Mul {}
 
 impl<T, U> Binary<T, U> for Mul where T: std::ops::Mul<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.mul(u) }
 }
 
@@ -60,6 +64,7 @@ pub enum Div {}
 
 impl<T, U> Binary<T, U> for Div where T: std::ops::Div<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.div(u) }
 }
 
@@ -69,6 +74,7 @@ pub enum Rem {}
 
 impl<T, U> Binary<T, U> for Rem where T: std::ops::Rem<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.rem(u) }
 }
 
@@ -78,6 +84,7 @@ pub enum BitAnd {}
 
 impl<T, U> Binary<T, U> for BitAnd where T: std::ops::BitAnd<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.bitand(u) }
 }
 
@@ -87,6 +94,7 @@ pub enum BitOr {}
 
 impl<T, U> Binary<T, U> for BitOr where T: std::ops::BitOr<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.bitor(u) }
 }
 
@@ -96,6 +104,7 @@ pub enum BitXor {}
 
 impl<T, U> Binary<T, U> for BitXor where T: std::ops::BitXor<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.bitxor(u) }
 }
 
@@ -105,6 +114,7 @@ pub enum Shl {}
 
 impl<T, U> Binary<T, U> for Shl where T: std::ops::Shl<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.shl(u) }
 }
 
@@ -114,6 +124,7 @@ pub enum Shr {}
 
 impl<T, U> Binary<T, U> for Shr where T: std::ops::Shr<U> {
     type Output = T::Output;
+    #[inline(always)]
     fn call(t: T, u: U) -> Self::Output { t.shr(u) }
 }
 
