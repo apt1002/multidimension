@@ -870,9 +870,20 @@ impl<V: View, I: Index, X: Index, J: Index> View for FromUsize<V, I, X, J> where
 
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
-        self.0.at(V::I::from_iso((index.0, index.1.to_usize(self.1), index.2)))
+        self.0.at(self.inner_index(index))
     }
 }
+
+impl_memoryview!(FromUsize<V: View, I: Index, X: Index, J: Index> where
+    V: MemoryView,
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<<(I, usize, J) as Index>::Size>
+{
+    |self_, index| (self_.0)[{
+        let (i, x, j) = index;
+        V::I::from_iso((i, x.to_usize(self_.1), j))
+    }]
+});
 
 impl_ops_for_view!(FromUsize<V, I, X: Index, J>);
 
@@ -897,11 +908,22 @@ impl<V: View, I: Index, X: Index, J: Index> View for ToUsize<V, I, X, J> where
 
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
-        let (q, x) = X::from_usize(self.0.size().to_iso().1, index.1);
-        assert_eq!(q, 0);
-        self.0.at(V::I::from_iso((index.0, x, index.2)))
+        self.0.at(self.inner_index(index))
     }
 }
+
+impl_memoryview!(ToUsize<V: View, I: Index, X: Index, J: Index> where
+    V: MemoryView,
+    V::I: Isomorphic<(I, X, J)>,
+    <V::I as Index>::Size: Isomorphic<<(I, X, J) as Index>::Size>
+{
+    |self_, index| (self_.0)[{
+        let (i, x, j) = index;
+        let (q, x) = X::from_usize(self_.0.size().to_iso().1, x);
+        assert_eq!(q, 0);
+        V::I::from_iso((i, x, j))
+    }]
+});
 
 impl_ops_for_view!(ToUsize<V, I, X, J>);
 
