@@ -42,11 +42,15 @@ pub trait NewView: View {
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
 ///
-/// A `View` which is backed by memory (i.e. where [`View::at()`] clones a value
-/// in memory) should also implement [`MemoryView`], which implies
-/// [`std::ops::Index`] and [`std::ops::IndexMut`]. Usually, a `View` which
-/// wraps another `View` and merely manipulates its [`Index`] will implement
-/// `MemoryView`.
+/// ### Memory-backed `View`s.
+///
+/// All implementations of `View` defined in this crate implement
+/// [`MemoryView`] when they are backed by memory, i.e. when [`View::at()`]
+/// clones a value in memory. For example, a `View` which wraps another `View`
+/// and merely manipulates its [`Index`] will implement `MemoryView`.
+///
+/// You are encouraged to define your `View`s similarly, e.g. using the macro
+/// [`impl_memoryview`] which is provided for this purpose.
 ///
 /// ### Arithmetic
 ///
@@ -89,6 +93,8 @@ pub trait NewView: View {
 /// /// MyView can nonetheless borrow a `V`.
 /// fn my_borrow<V: View>(v: &V) -> MyView<&V> { MyView(v) }
 /// ```
+///
+/// [`impl_memoryview`]: super::impl_memoryview
 pub trait View: Sized {
     /// The index type.
     type I: Index;
@@ -614,6 +620,108 @@ impl<V: View, T: Deref<Target=V>> View for T {
     fn size(&self) -> <Self::I as Index>::Size { V::size(self) }
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { V::at(self, index) }
+}
+
+// ----------------------------------------------------------------------------
+
+/// A [`View`] that is backed by memory.
+///
+/// [`View::at()`] must be equivalent to `self[index].clone()`.
+///
+/// You might find the macro [`impl_memoryview`] helpful when implementing this
+/// trait.
+///
+/// [`impl_memoryview`]: super::impl_memoryview
+pub trait MemoryView: View + std::ops::Index<Self::I, Output=Self::T> + std::ops::IndexMut<Self::I> {}
+
+/// A helper macro for implementing [`MemoryView`].
+///
+/// The macro defines a private method `inner_index()` and implements
+/// [`std::ops::Index`], [`std::ops::IndexMut`] and [`MemoryView`]
+///
+/// ```
+/// use multidimension::{Index, View, MemoryView, impl_memoryview};
+///
+/// struct Reversed<V: View>(V);
+///
+/// impl_memoryview!(Reversed<V: View<I=usize>> where
+///     V: MemoryView,
+/// {
+///     |self_, index| (self_.0)[self_.size() - 1 - index]
+/// });
+///
+/// impl<V: View<I=usize>> View for Reversed<V> {
+///     type I = usize;
+///     type T = V::T;
+///     fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+///     fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
+/// }
+/// ```
+#[macro_export]
+macro_rules! impl_memoryview {
+    ($v:ident<
+        $($a: lifetime,)?
+        $($param:ident$(: $bound:path)?),*
+    > where
+        $inner:ident: MemoryView,
+        $($where_type:ty: $where_bound:path),*
+    {
+        |$self:ident, $index:ident| ($collection_expr:expr)[$index_expr:expr]
+    }) => {
+        impl<
+            $($a,)?
+            $($param$(: $bound)?),*
+        > $v<$($a,)? $($param),*> where
+            $($where_type: $where_bound),*
+        {
+            /// Map a `Self::I` to a `$inner::I`.
+            #[inline(always)]
+            fn inner_index(&self, $index: <Self as View>::I) -> <$inner as View>::I {
+                let $self = self;
+                $index_expr
+            }
+        }
+
+        impl<
+            $($a,)?
+            $($param$(: $bound)?),*
+        > std::ops::Index<<Self as View>::I> for $v<$($a,)? $($param),*> where
+            $inner: MemoryView,
+            $($where_type: $where_bound),*
+        {
+            type Output = <Self as View>::T;
+
+            #[inline(always)]
+            fn index(&self, $index: <Self as View>::I) -> &Self::Output {
+                let $self = self;
+                let index = $self.inner_index($index);
+                &$collection_expr[index]
+            }
+        }
+
+        impl<
+            $($a,)?
+            $($param$(: $bound)?),*
+        > std::ops::IndexMut<<Self as View>::I> for $v<$($a,)? $($param),*> where
+            $inner: MemoryView,
+            $($where_type: $where_bound),*
+        {
+            #[inline(always)]
+            fn index_mut(&mut self, $index: <Self as View>::I) -> &mut Self::Output {
+                let $self = self;
+                let index = $self.inner_index($index);
+                &mut $collection_expr[index]
+            }
+        }
+
+        impl<
+            $($a,)?
+            $($param$(: $bound)?),*
+        > MemoryView for $v<$($a,)? $($param),*> where
+            $inner: MemoryView,
+            $($where_type: $where_bound),*
+        {}
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -1149,15 +1257,6 @@ impl_ops_for_view!(Rows<V, I, J>);
 #[derive(Debug, Copy, Clone)]
 pub struct Column<V, I, J>(V, PhantomData<I>, J);
 
-impl<V: View, I: Index, J: Index> Column<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-{
-    /// Map a `I` to a `V::I`.
-    #[inline(always)]
-    fn v_index(&self, index: <Self as View>::I) -> V::I { (index, self.2).to_iso() }
-}
-
 impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
@@ -1167,40 +1266,16 @@ impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     #[inline(always)]
     fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
     #[inline(always)]
-    fn at(&self, index: I) -> Self::T { self.0.at(self.v_index(index)) }
+    fn at(&self, index: I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::Index<<Self as View>::I> for Column<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+impl_memoryview!(Column<V: View, I: Index, J: Index> where
     V: MemoryView,
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>
 {
-    type Output = V::T;
-
-    #[inline(always)]
-    fn index(&self, index: <Self as View>::I) -> &Self::Output {
-        let vi = self.v_index(index);
-        &self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Column<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{
-    #[inline(always)]
-    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
-        let vi = self.v_index(index);
-        &mut self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, J: Index> MemoryView for Column<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{}
+    |self_, index| (self_.0)[(index, self_.2).to_iso()]
+});
 
 impl_ops_for_view!(Column<V, I, J>);
 
@@ -1277,10 +1352,3 @@ pub fn fn_view<I: Index, T: Clone, F>(size: impl Isomorphic<I::Size>, f: F) -> F
 
 /// The return type of [`fn_view()`].
 pub type FnView<I, F> = Map<super::All<I>, F>;
-
-// ----------------------------------------------------------------------------
-
-/// A [`View`] that is backed by memory.
-///
-/// [`View::at()`] must be equivalent to `self[index].clone()`.
-pub trait MemoryView: View + std::ops::Index<Self::I, Output=Self::T> + std::ops::IndexMut<Self::I> {}
