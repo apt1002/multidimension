@@ -42,6 +42,10 @@ pub trait NewView: View {
 /// Implemented by types that behave like an array of `Self::T`s indexed by
 /// `Self::I`, but whose array elements are computed on demand.
 ///
+/// A View which is backed by memory (i.e. where [`View::at()`] clones a value
+/// in memory) should also implement [`MemoryView`], which implies
+/// [`std::ops::Index`] and [`std::ops::IndexMut`].
+///
 /// ### Arithmetic
 ///
 /// All implementations of `View` defined in this crate define the standard
@@ -980,6 +984,15 @@ impl_ops_for_view!(Transpose<V, I, X, Y, J>);
 #[derive(Debug, Copy, Clone)]
 pub struct Row<V, I, J>(V, I, PhantomData<J>);
 
+impl<V: View, I: Index, J: Index> Row<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+{
+    /// Map a `J` to a `V::I`.
+    #[inline(always)]
+    fn v_index(&self, index: J) -> V::I { (self.1, index).to_iso() }
+}
+
 impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
@@ -989,8 +1002,39 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     #[inline(always)]
     fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
     #[inline(always)]
-    fn at(&self, index: J) -> Self::T { self.0.at((self.1, index).to_iso()) }
+    fn at(&self, index: J) -> Self::T { self.0.at(self.v_index(index)) }
 }
+
+impl<V: View, I: Index, J: Index> std::ops::Index<J> for Row<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    type Output = V::T;
+    #[inline(always)]
+    fn index(&self, index: J) -> &Self::Output {
+        let vi = self.v_index(index);
+        &self.0[vi]
+    }
+}
+
+impl<V: View, I: Index, J: Index> std::ops::IndexMut<J> for Row<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    #[inline(always)]
+    fn index_mut(&mut self, index: J) -> &mut Self::Output {
+        let vi = self.v_index(index);
+        &mut self.0[vi]
+    }
+}
+
+impl<V: View, I: Index, J: Index> MemoryView for Row<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{}
 
 impl_ops_for_view!(Row<V, I, J>);
 
@@ -1020,6 +1064,15 @@ impl_ops_for_view!(Rows<V, I, J>);
 #[derive(Debug, Copy, Clone)]
 pub struct Column<V, I, J>(V, PhantomData<I>, J);
 
+impl<V: View, I: Index, J: Index> Column<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+{
+    /// Map a `I` to a `V::I`.
+    #[inline(always)]
+    fn v_index(&self, index: I) -> V::I { (index, self.2).to_iso() }
+}
+
 impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
@@ -1029,8 +1082,39 @@ impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     #[inline(always)]
     fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
     #[inline(always)]
-    fn at(&self, index: I) -> Self::T { self.0.at((index, self.2).to_iso()) }
+    fn at(&self, index: I) -> Self::T { self.0.at(self.v_index(index)) }
 }
+
+impl<V: View, I: Index, J: Index> std::ops::Index<I> for Column<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    type Output = V::T;
+    #[inline(always)]
+    fn index(&self, index: I) -> &Self::Output {
+        let vi = self.v_index(index);
+        &self.0[vi]
+    }
+}
+
+impl<V: View, I: Index, J: Index> std::ops::IndexMut<I> for Column<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    #[inline(always)]
+    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+        let vi = self.v_index(index);
+        &mut self.0[vi]
+    }
+}
+
+impl<V: View, I: Index, J: Index> MemoryView for Column<V, I, J> where
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{}
 
 impl_ops_for_view!(Column<V, I, J>);
 
@@ -1070,6 +1154,17 @@ impl<T: Clone> View for Scalar<T> {
     fn at(&self, _: ()) -> T { self.0.clone() }
 }
 
+impl<T: Clone> std::ops::Index<()> for Scalar<T> {
+    type Output = T;
+    #[inline(always)]
+    fn index(&self, _: ()) -> &Self::Output { &self.0 }
+}
+
+impl<T: Clone> std::ops::IndexMut<()> for Scalar<T> {
+    #[inline(always)]
+    fn index_mut(&mut self, _: ()) -> &mut Self::Output { &mut self.0 }
+}
+
 impl_ops_for_view!(Scalar<T: Clone>);
 
 // ----------------------------------------------------------------------------
@@ -1093,3 +1188,10 @@ pub fn fn_view<I: Index, T: Clone, F>(size: impl Isomorphic<I::Size>, f: F) -> F
 
 /// The return type of [`fn_view()`].
 pub type FnView<I, F> = Map<super::All<I>, F>;
+
+// ----------------------------------------------------------------------------
+
+/// A [`View`] that is backed by memory.
+///
+/// [`View::at()`] must be equivalent to `self[index].clone()`.
+pub trait MemoryView: View + std::ops::Index<Self::I, Output=Self::T> + std::ops::IndexMut<Self::I> {}
