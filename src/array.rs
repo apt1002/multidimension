@@ -1,4 +1,4 @@
-use super::{Isomorphic, Size, Index, impl_ops_for_view, View};
+use super::{Isomorphic, Size, Index, impl_ops_for_view, View, MemoryView};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -61,6 +61,7 @@ impl<I: Index, T> Array<I, T> {
         Array {size: J::Size::from_iso(self.size), items: self.items}
     }
 
+    // TODO: Replace with `View::view_ref()` and `View::view_mut()`.
     /// Returns a `View` that borrows the elements of `Self`.
     pub fn view(&self) -> ArrayView<I, T> { ArrayView(self) }
 }
@@ -100,6 +101,8 @@ impl<I: Index, T: Clone> View for Array<I, T> {
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
+impl<I: Index, T: Clone> MemoryView for Array<I, T> {}
+
 impl_ops_for_view!(Array<I: Index, T>);
 
 // ----------------------------------------------------------------------------
@@ -123,6 +126,7 @@ impl<I: Index, T: Clone> super::NewView for Array<I, T> {
 
 // ----------------------------------------------------------------------------
 
+// TODO: Delete.
 pub struct ArrayView<'a, I: Index, T>(&'a Array<I, T>);
 
 impl<'a, I: Index, T: Clone> View for ArrayView<'a, I, T> {
