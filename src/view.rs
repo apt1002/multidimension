@@ -956,6 +956,18 @@ impl_ops_for_view!(Iso<V, J: Index>);
 #[derive(Debug, Copy, Clone)]
 pub struct Transpose<V, I, X, Y, J>(V, PhantomData<(I, (X, Y), J)>);
 
+impl<V: View, I: Index, X: Index, Y: Index, J: Index> Transpose<V, I, X, Y, J> where
+    (I, (Y, X), J): Isomorphic<V::I>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
+{
+    /// Map a `Self::I` to a `V::I`.
+    #[inline(always)]
+    fn v_index(&self, index: <Self as View>::I) -> V::I {
+        let (i, (x, y), j) = index;
+        (i, (y, x), j).to_iso()
+    }
+}
+
 impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X, Y, J> where
     (I, (Y, X), J): Isomorphic<V::I>,
     (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
@@ -970,11 +982,40 @@ impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X
     }
 
     #[inline(always)]
-    fn at(&self, index: (I, (X, Y), J)) -> Self::T {
-        let (i, (x, y), j) = index;
-        self.0.at((i, (y, x), j).to_iso())
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.v_index(index)) }
+}
+
+impl<V: View, I: Index, X: Index, Y: Index, J: Index> std::ops::Index<<Self as View>::I> for Transpose<V, I, X, Y, J> where
+    (I, (Y, X), J): Isomorphic<V::I>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    type Output = V::T;
+
+    #[inline(always)]
+    fn index(&self, index: <Self as View>::I) -> &Self::Output {
+        let vi = self.v_index(index);
+        &self.0[vi]
     }
 }
+
+impl<V: View, I: Index, X: Index, Y: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Transpose<V, I, X, Y, J> where
+    (I, (Y, X), J): Isomorphic<V::I>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{
+    #[inline(always)]
+    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
+        let vi = self.v_index(index);
+        &mut self.0[vi]
+    }
+}
+
+impl<V: View, I: Index, X: Index, Y: Index, J: Index> MemoryView for Transpose<V, I, X, Y, J> where
+    (I, (Y, X), J): Isomorphic<V::I>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
+    V: MemoryView,
+{}
 
 impl_ops_for_view!(Transpose<V, I, X, Y, J>);
 
@@ -990,7 +1031,7 @@ impl<V: View, I: Index, J: Index> Row<V, I, J> where
 {
     /// Map a `J` to a `V::I`.
     #[inline(always)]
-    fn v_index(&self, index: J) -> V::I { (self.1, index).to_iso() }
+    fn v_index(&self, index: <Self as View>::I) -> V::I { (self.1, index).to_iso() }
 }
 
 impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
@@ -1005,26 +1046,27 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     fn at(&self, index: J) -> Self::T { self.0.at(self.v_index(index)) }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::Index<J> for Row<V, I, J> where
+impl<V: View, I: Index, J: Index> std::ops::Index<<Self as View>::I> for Row<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
     V: MemoryView,
 {
     type Output = V::T;
+
     #[inline(always)]
-    fn index(&self, index: J) -> &Self::Output {
+    fn index(&self, index: <Self as View>::I) -> &Self::Output {
         let vi = self.v_index(index);
         &self.0[vi]
     }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::IndexMut<J> for Row<V, I, J> where
+impl<V: View, I: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Row<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
     V: MemoryView,
 {
     #[inline(always)]
-    fn index_mut(&mut self, index: J) -> &mut Self::Output {
+    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
         let vi = self.v_index(index);
         &mut self.0[vi]
     }
@@ -1070,7 +1112,7 @@ impl<V: View, I: Index, J: Index> Column<V, I, J> where
 {
     /// Map a `I` to a `V::I`.
     #[inline(always)]
-    fn v_index(&self, index: I) -> V::I { (index, self.2).to_iso() }
+    fn v_index(&self, index: <Self as View>::I) -> V::I { (index, self.2).to_iso() }
 }
 
 impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
@@ -1085,26 +1127,27 @@ impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     fn at(&self, index: I) -> Self::T { self.0.at(self.v_index(index)) }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::Index<I> for Column<V, I, J> where
+impl<V: View, I: Index, J: Index> std::ops::Index<<Self as View>::I> for Column<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
     V: MemoryView,
 {
     type Output = V::T;
+
     #[inline(always)]
-    fn index(&self, index: I) -> &Self::Output {
+    fn index(&self, index: <Self as View>::I) -> &Self::Output {
         let vi = self.v_index(index);
         &self.0[vi]
     }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::IndexMut<I> for Column<V, I, J> where
+impl<V: View, I: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Column<V, I, J> where
     (I, J): Isomorphic<V::I>,
     (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
     V: MemoryView,
 {
     #[inline(always)]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
+    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
         let vi = self.v_index(index);
         &mut self.0[vi]
     }
@@ -1154,16 +1197,19 @@ impl<T: Clone> View for Scalar<T> {
     fn at(&self, _: ()) -> T { self.0.clone() }
 }
 
-impl<T: Clone> std::ops::Index<()> for Scalar<T> {
+impl<T: Clone> std::ops::Index<<Self as View>::I> for Scalar<T> {
     type Output = T;
+
     #[inline(always)]
-    fn index(&self, _: ()) -> &Self::Output { &self.0 }
+    fn index(&self, _: <Self as View>::I) -> &Self::Output { &self.0 }
 }
 
-impl<T: Clone> std::ops::IndexMut<()> for Scalar<T> {
+impl<T: Clone> std::ops::IndexMut<<Self as View>::I> for Scalar<T> {
     #[inline(always)]
-    fn index_mut(&mut self, _: ()) -> &mut Self::Output { &mut self.0 }
+    fn index_mut(&mut self, _: <Self as View>::I) -> &mut Self::Output { &mut self.0 }
 }
+
+impl<T: Clone> MemoryView for Scalar<T> {}
 
 impl_ops_for_view!(Scalar<T: Clone>);
 
