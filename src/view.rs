@@ -202,16 +202,6 @@ pub trait View: Sized {
         Self::I::each(self.size(), |i| f(self.at(i)));
     }
 
-    /// Creates a `View` that clones its elements.
-    ///
-    /// This is useful when you have a `View` that computes `&T`, but you need
-    /// a `View` that computes `T`.
-    fn cloned<'u, U: 'u + Clone>(self) -> Cloned<Self> where
-        Self: View<T=&'u U>,
-    {
-        Cloned(self)
-    }
-
     /// Creates a `View` with the same `Index` type as `self` such that `at(i)`
     /// returns `(i, self.at(i))`.
     ///
@@ -724,23 +714,6 @@ macro_rules! impl_memoryview {
         {}
     }
 }
-
-// ----------------------------------------------------------------------------
-
-/// The return type of [`View::cloned()`].
-#[derive(Debug, Copy, Clone)]
-pub struct Cloned<V>(V);
-
-impl<'t, T: 't + Clone, V: View<T=&'t T>> View for Cloned<V> {
-    type I = V::I;
-    type T = T;
-    #[inline(always)]
-    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
-    #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T { self.0.at(index).clone() }
-}
-
-impl_ops_for_view!(Cloned<V>);
 
 // ----------------------------------------------------------------------------
 
