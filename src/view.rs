@@ -677,6 +677,7 @@ macro_rules! impl_memoryview {
             /// Map a `Self::I` to a `$inner::I`.
             #[inline(always)]
             fn inner_index(&self, $index: <Self as View>::I) -> <$inner as View>::I {
+                #[allow(unused)]
                 let $self = self;
                 $index_expr
             }
@@ -931,6 +932,18 @@ impl<V: View, I: Index, J: Index, K: Index> View for InsertOne<V, I, J, K> where
     }
 }
 
+impl_memoryview!(InsertOne<V: View, I: Index, J: Index, K: Index> where
+    V: MemoryView,
+    V::I: Isomorphic<(I, K)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, K::Size)>
+{
+    |self_, index| (self_.0)[{
+        let (i, j, k) = index;
+        assert_eq!(j.to_usize(self_.1), 0);
+        Isomorphic::from_iso((i, k))
+    }]
+});
+
 impl_ops_for_view!(InsertOne<V, I, J: Index, K>);
 
 // ----------------------------------------------------------------------------
@@ -954,10 +967,20 @@ impl<V: View, I: Index, J: Index, K: Index> View for RemoveOne<V, I, J, K> where
 
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
-        let (i, k) = index;
-        self.0.at(Isomorphic::from_iso((i, self.1, k)))
+        self.0.at(self.inner_index(index))
     }
 }
+
+impl_memoryview!(RemoveOne<V: View, I: Index, J: Index, K: Index> where
+    V: MemoryView,
+    V::I: Isomorphic<(I, J, K)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, J::Size, K::Size)>
+{
+    |self_, index| (self_.0)[{
+        let (i, k) = index;
+        Isomorphic::from_iso((i, self_.1, k))
+    }]
+});
 
 impl_ops_for_view!(RemoveOne<V, I, J, K>);
 
@@ -983,10 +1006,21 @@ impl<V: View, I: Index, W: View, J: Index> View for MapAxis<V, I, W, J> where
 
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
-        let (i, x, j) = index;
-        self.0.at(Isomorphic::from_iso((i, self.2.at(x), j)))
+        self.0.at(self.inner_index(index))
     }
 }
+
+impl_memoryview!(MapAxis<V: View, I: Index, W: View, J: Index> where
+    V: MemoryView,
+    W::T: Index,
+    V::I: Isomorphic<(I, W::T, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, <W::T as Index>::Size, J::Size)>
+{
+    |self_, index| (self_.0)[{
+        let (i, x, j) = index;
+        Isomorphic::from_iso((i, self_.2.at(x), j))
+    }]
+});
 
 impl_ops_for_view!(MapAxis<V, I, W, J>);
 
@@ -1038,6 +1072,16 @@ impl<V: View, I: Index> View for Coat<V, I> where
     fn at(&self, index: Self::I) -> Self::T { self.0.at(index.coat()) }
 }
 
+impl_memoryview!(Coat<V: View, I: Index> where
+    V: MemoryView,
+    I: super::Coat<V::I>,
+    V::I: super::Coat<I>,
+    I::Size: super::Coat<<V::I as Index>::Size>,
+    <V::I as Index>::Size: super::Coat<I::Size>
+{
+    |self_, index| (self_.0)[index.coat()]
+});
+
 impl_ops_for_view!(Coat<V, I>);
 
 // ----------------------------------------------------------------------------
@@ -1045,15 +1089,6 @@ impl_ops_for_view!(Coat<V, I>);
 /// The return type of [`View::iso()`].
 #[derive(Debug, Copy, Clone)]
 pub struct Iso<V, J: Index>(V, PhantomData<J>);
-
-impl<V: View, J: Index> Iso<V, J> where
-    J: Isomorphic<V::I>,
-    J::Size: Isomorphic<<V::I as Index>::Size>,
-{
-    /// Map a `Self::I` to a `V::I`.
-    #[inline(always)]
-    fn v_index(&self, index: <Self as View>::I) -> V::I { index.to_iso() }
-}
 
 impl<V: View, J: Index> View for Iso<V, J> where
     J: Isomorphic<V::I>,
@@ -1064,40 +1099,16 @@ impl<V: View, J: Index> View for Iso<V, J> where
     #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { Isomorphic::from_iso(self.0.size()) }
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.v_index(index)) }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
-impl<V: View, J: Index> std::ops::Index<<Self as View>::I> for Iso<V, J> where
-    J: Isomorphic<V::I>,
-    J::Size: Isomorphic<<V::I as Index>::Size>,
+impl_memoryview!(Iso<V: View, J: Index> where
     V: MemoryView,
+    J: Isomorphic<V::I>,
+    J::Size: Isomorphic<<V::I as Index>::Size>
 {
-    type Output = V::T;
-
-    #[inline(always)]
-    fn index(&self, index: <Self as View>::I) -> &Self::Output {
-        let vi = self.v_index(index);
-        &self.0[vi]
-    }
-}
-
-impl<V: View, J: Index> std::ops::IndexMut<<Self as View>::I> for Iso<V, J> where
-    J: Isomorphic<V::I>,
-    J::Size: Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{
-    #[inline(always)]
-    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
-        let vi = self.v_index(index);
-        &mut self.0[vi]
-    }
-}
-
-impl<V: View, J: Index> MemoryView for Iso<V, J> where
-    J: Isomorphic<V::I>,
-    J::Size: Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{}
+    |self_, index| (self_.0)[index.to_iso()]
+});
 
 impl_ops_for_view!(Iso<V, J: Index>);
 
@@ -1106,18 +1117,6 @@ impl_ops_for_view!(Iso<V, J: Index>);
 /// The return type of [`View::transpose()`].
 #[derive(Debug, Copy, Clone)]
 pub struct Transpose<V, I, X, Y, J>(V, PhantomData<(I, (X, Y), J)>);
-
-impl<V: View, I: Index, X: Index, Y: Index, J: Index> Transpose<V, I, X, Y, J> where
-    (I, (Y, X), J): Isomorphic<V::I>,
-    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
-{
-    /// Map a `Self::I` to a `V::I`.
-    #[inline(always)]
-    fn v_index(&self, index: <Self as View>::I) -> V::I {
-        let (i, (x, y), j) = index;
-        (i, (y, x), j).to_iso()
-    }
-}
 
 impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X, Y, J> where
     (I, (Y, X), J): Isomorphic<V::I>,
@@ -1133,40 +1132,19 @@ impl<V: View, I: Index, X: Index, Y: Index, J: Index> View for Transpose<V, I, X
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.v_index(index)) }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
-impl<V: View, I: Index, X: Index, Y: Index, J: Index> std::ops::Index<<Self as View>::I> for Transpose<V, I, X, Y, J> where
-    (I, (Y, X), J): Isomorphic<V::I>,
-    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
+impl_memoryview!(Transpose<V: View, I: Index, X: Index, Y: Index, J: Index> where
     V: MemoryView,
+    (I, (Y, X), J): Isomorphic<V::I>,
+    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>
 {
-    type Output = V::T;
-
-    #[inline(always)]
-    fn index(&self, index: <Self as View>::I) -> &Self::Output {
-        let vi = self.v_index(index);
-        &self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, X: Index, Y: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Transpose<V, I, X, Y, J> where
-    (I, (Y, X), J): Isomorphic<V::I>,
-    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{
-    #[inline(always)]
-    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
-        let vi = self.v_index(index);
-        &mut self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, X: Index, Y: Index, J: Index> MemoryView for Transpose<V, I, X, Y, J> where
-    (I, (Y, X), J): Isomorphic<V::I>,
-    (I::Size, (Y::Size, X::Size), J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{}
+    |self_, index| (self_.0)[{
+        let (i, (x, y), j) = index;
+        (i, (y, x), j).to_iso()
+    }]
+});
 
 impl_ops_for_view!(Transpose<V, I, X, Y, J>);
 
@@ -1175,15 +1153,6 @@ impl_ops_for_view!(Transpose<V, I, X, Y, J>);
 /// The return type of [`View::row()`].
 #[derive(Debug, Copy, Clone)]
 pub struct Row<V, I, J>(V, I, PhantomData<J>);
-
-impl<V: View, I: Index, J: Index> Row<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-{
-    /// Map a `J` to a `V::I`.
-    #[inline(always)]
-    fn v_index(&self, index: <Self as View>::I) -> V::I { (self.1, index).to_iso() }
-}
 
 impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     (I, J): Isomorphic<V::I>,
@@ -1194,40 +1163,16 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     #[inline(always)]
     fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
     #[inline(always)]
-    fn at(&self, index: J) -> Self::T { self.0.at(self.v_index(index)) }
+    fn at(&self, index: J) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
-impl<V: View, I: Index, J: Index> std::ops::Index<<Self as View>::I> for Row<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
+impl_memoryview!(Row<V: View, I: Index, J: Index> where
     V: MemoryView,
+    (I, J): Isomorphic<V::I>,
+    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>
 {
-    type Output = V::T;
-
-    #[inline(always)]
-    fn index(&self, index: <Self as View>::I) -> &Self::Output {
-        let vi = self.v_index(index);
-        &self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Row<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{
-    #[inline(always)]
-    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
-        let vi = self.v_index(index);
-        &mut self.0[vi]
-    }
-}
-
-impl<V: View, I: Index, J: Index> MemoryView for Row<V, I, J> where
-    (I, J): Isomorphic<V::I>,
-    (I::Size, J::Size): Isomorphic<<V::I as Index>::Size>,
-    V: MemoryView,
-{}
+    |self_, index| (self_.0)[(self_.1, index).to_iso()]
+});
 
 impl_ops_for_view!(Row<V, I, J>);
 
