@@ -779,6 +779,8 @@ impl<V: View> View for Diagonal<V> where
     }
 }
 
+// TODO: Implement `MemoryView`.
+
 impl_ops_for_view!(Diagonal<V>);
 
 // ----------------------------------------------------------------------------
@@ -812,6 +814,12 @@ impl<V: View, W: View<I=V::T>> View for Compose<V, W> {
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.1.at(self.0.at(index)) }
 }
+
+impl_memoryview!(Compose<V: View, W: View<I=V::T>> where
+    W: MemoryView,
+{
+    |self_, index| (self_.1)[self_.0.at(index)]
+});
 
 impl_ops_for_view!(Compose<V, W>);
 
@@ -847,6 +855,8 @@ impl<V: View, W: View<T=V::T>, I: Index, J: Index> View for Concat<V, W, I, J> w
     }
 }
 
+// TODO: Implement `MemoryView`.
+
 impl_ops_for_view!(Concat<V, W, I, J>);
 
 // ----------------------------------------------------------------------------
@@ -869,9 +879,7 @@ impl<V: View, I: Index, X: Index, J: Index> View for FromUsize<V, I, X, J> where
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T {
-        self.0.at(self.inner_index(index))
-    }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(FromUsize<V: View, I: Index, X: Index, J: Index> where
@@ -907,9 +915,7 @@ impl<V: View, I: Index, X: Index, J: Index> View for ToUsize<V, I, X, J> where
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T {
-        self.0.at(self.inner_index(index))
-    }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(ToUsize<V: View, I: Index, X: Index, J: Index> where
@@ -947,11 +953,7 @@ impl<V: View, I: Index, J: Index, K: Index> View for InsertOne<V, I, J, K> where
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T {
-        let (i, j, k) = index;
-        assert_eq!(j.to_usize(self.1), 0);
-        self.0.at(Isomorphic::from_iso((i, k)))
-    }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(InsertOne<V: View, I: Index, J: Index, K: Index> where
@@ -988,9 +990,7 @@ impl<V: View, I: Index, J: Index, K: Index> View for RemoveOne<V, I, J, K> where
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T {
-        self.0.at(self.inner_index(index))
-    }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(RemoveOne<V: View, I: Index, J: Index, K: Index> where
@@ -1027,9 +1027,7 @@ impl<V: View, I: Index, W: View, J: Index> View for MapAxis<V, I, W, J> where
     }
 
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T {
-        self.0.at(self.inner_index(index))
-    }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(MapAxis<V: View, I: Index, W: View, J: Index> where
@@ -1091,7 +1089,7 @@ impl<V: View, I: Index> View for Coat<V, I> where
     #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { self.0.size().coat() }
     #[inline(always)]
-    fn at(&self, index: Self::I) -> Self::T { self.0.at(index.coat()) }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(Coat<V: View, I: Index> where
@@ -1185,7 +1183,7 @@ impl<V: View, I: Index, J: Index> View for Row<V, I, J> where
     #[inline(always)]
     fn size(&self) -> J::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).1 }
     #[inline(always)]
-    fn at(&self, index: J) -> Self::T { self.0.at(self.inner_index(index)) }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(Row<V: View, I: Index, J: Index> where
@@ -1233,7 +1231,7 @@ impl<V: View, I: Index, J: Index> View for Column<V, I, J> where
     #[inline(always)]
     fn size(&self) -> I::Size { <(I::Size, J::Size)>::from_iso(self.0.size()).0 }
     #[inline(always)]
-    fn at(&self, index: I) -> Self::T { self.0.at(self.inner_index(index)) }
+    fn at(&self, index: Self::I) -> Self::T { self.0.at(self.inner_index(index)) }
 }
 
 impl_memoryview!(Column<V: View, I: Index, J: Index> where
