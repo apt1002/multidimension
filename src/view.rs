@@ -220,21 +220,21 @@ pub trait View: Sized {
     }
 
     /// Returns a `View` that maps `(i, i)` to `t` when `Self` maps `i` to `t`.
-    /// It maps `(i, j)` to `T::default()` if `i != t`.
+    /// It maps `(i, j)` to `zero` if `i != j`.
+    ///
+    /// `zero` can be any value of type `V::T`. It doesn't have to be zero.
     ///
     /// ```
     /// use multidimension::{Index, View, Array};
-    /// let a: Array<_, _> = usize::all(3).map(|x| x + 10).diagonal().collect();
+    /// let a: Array<_, _> = usize::all(3).map(|x| x + 10).diagonal(0).collect();
     /// assert_eq!(a.as_ref(), [
     ///     10, 0, 0,
     ///     0, 11, 0,
     ///     0, 0, 12,
     /// ]);
     /// ```
-    fn diagonal(self) -> Diagonal<Self> where
-        Self::T: Default,
-    {
-        Diagonal(self)
+    fn diagonal(self, zero: Self::T) -> Diagonal<Self> {
+        Diagonal(self, zero)
     }
 
     /// Creates a `View` that applies `f` to the elements of `Self`.
@@ -736,25 +736,40 @@ impl_ops_for_view!(Enumerate<V>);
 
 /// The return type of [`View::diagonal()`].
 #[derive(Debug, Copy, Clone)]
-pub struct Diagonal<V>(V);
+pub struct Diagonal<V: View>(V, V::T);
 
-impl<V: View> View for Diagonal<V> where
-    V::I: PartialEq,
-    V::T: Default,
-{
+impl<V: View> View for Diagonal<V> {
     type I = (V::I, V::I);
     type T = V::T;
     #[inline(always)]
     fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), self.0.size()) }
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T {
-        if index.0 == index.1 { self.0.at(index.0) } else { Default::default() }
+        if index.0 == index.1 { self.0.at(index.0) } else { self.1.clone() }
     }
 }
 
-// TODO: Implement `MemoryView`.
+impl<V: View> std::ops::Index<<Self as View>::I> for Diagonal<V> where
+    V: MemoryView,
+{
+    type Output = <Self as View>::T;
 
-impl_ops_for_view!(Diagonal<V>);
+    fn index(&self, index: <Self as View>::I) -> &Self::Output {
+        if index.0 == index.1 { &self.0[index.0] } else { &self.1 }
+    }
+}
+
+impl<V: View> std::ops::IndexMut<<Self as View>::I> for Diagonal<V> where
+    V: MemoryView,
+{
+    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
+        if index.0 == index.1 { &mut self.0[index.0] } else { &mut self.1 }
+    }
+}
+
+impl<V: View> MemoryView for Diagonal<V> where V: MemoryView {}
+
+impl_ops_for_view!(Diagonal<V: View>);
 
 // ----------------------------------------------------------------------------
 
