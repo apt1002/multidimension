@@ -1,4 +1,4 @@
-use super::{Isomorphic, Size, Index, impl_ops_for_view, View, MemoryView};
+use super::{Isomorphic, Size, Index, impl_ops_for_view, View, MemoryView, impl_ops_for_memoryview};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -70,22 +70,6 @@ impl<I: Index, T> std::convert::AsMut<[T]> for Array<I, T> {
     fn as_mut(&mut self) -> &mut [T] { &mut self.items }
 }
 
-impl<I: Index, T> std::ops::Index<I> for Array<I, T> {
-    type Output = T;
-
-    #[inline(always)]
-    fn index(&self, index: I) -> &Self::Output {
-        &self.items[index.to_usize(self.size)]
-    }
-}
-
-impl<I: Index, T> std::ops::IndexMut<I> for Array<I, T> {
-    #[inline(always)]
-    fn index_mut(&mut self, index: I) -> &mut Self::Output {
-        &mut self.items[index.to_usize(self.size)]
-    }
-}
-
 impl<I: Index, T: Clone> View for Array<I, T> {
     type I = I;
     type T = T;
@@ -97,9 +81,15 @@ impl<I: Index, T: Clone> View for Array<I, T> {
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
-impl<I: Index, T: Clone> MemoryView for Array<I, T> {}
+impl<I: Index, T: Clone> MemoryView for Array<I, T> {
+    #[inline(always)]
+    fn at_ref(&self, index: Self::I) -> &Self::T { &self.items[index.to_usize(self.size)] }
+    #[inline(always)]
+    fn at_mut(&mut self, index: Self::I) -> &mut Self::T { &mut self.items[index.to_usize(self.size)] }
+}
 
 impl_ops_for_view!(Array<I: Index, T>);
+impl_ops_for_memoryview!(Array<I: Index, T>);
 
 // ----------------------------------------------------------------------------
 

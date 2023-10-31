@@ -158,8 +158,8 @@ impl<T, U> Binary<T, U> for Shr where T: std::ops::Shr<U> {
 #[macro_export]
 macro_rules! impl_op_for_view {
     ($op:ident for $v:ident<$($a:lifetime,)? $($param:ident$(: $bound:path)?),*> { $method:ident }) => {
-        impl<$($a,)? RHS: View, $($param$(: $bound)?),*> std::ops::$op<RHS> for $v<$($a,)? $($param),*> where
-            Self: View,
+        impl<$($a,)? RHS: $crate::View, $($param$(: $bound)?),*> std::ops::$op<RHS> for $v<$($a,)? $($param),*> where
+            Self: $crate::View,
             <Self as View>::I: $crate::Broadcast<RHS::I>,
             <Self as View>::T: std::ops::$op<RHS::T>,
         {
@@ -204,5 +204,47 @@ macro_rules! impl_ops_for_view {
         $crate::impl_op_for_view! { BitXor for $v<$($a,)? $($param$(: $bound)?),*> { bitxor } }
         $crate::impl_op_for_view! { Shl for $v<$($a,)? $($param$(: $bound)?),*> { shl } }
         $crate::impl_op_for_view! { Shr for $v<$($a,)? $($param$(: $bound)?),*> { shr } }
+    };
+}
+
+// ----------------------------------------------------------------------------
+
+/// A helper macro for implementing [`std::ops::Index`] and
+/// [`std::ops::IndexMut`] in terms of [`MemoryView`].
+///
+/// ```
+/// use multidimension::{Index, View, MemoryView, impl_ops_for_memoryview};
+///
+/// pub struct VecView<T: Clone>(Vec<T>);
+///
+/// impl<T: Clone> View for VecView<T> {
+///     type I = usize;
+///     type T = T;
+///     fn size(&self) -> usize { self.0.len() }
+///     fn at(&self, index: usize) -> T { self.0[index].clone() }
+/// }
+///
+/// impl<T: Clone> MemoryView for VecView<T> {
+///     fn at_ref(&self, index: Self::I) -> &Self::T { &self.0[index] }
+///     fn at_mut(&mut self, index: Self::I) -> &mut Self::T { &mut self.0[index] }
+/// }
+///
+/// impl_ops_for_memoryview!(VecView<T: Clone>);
+/// ```
+#[macro_export]
+macro_rules! impl_ops_for_memoryview {
+    ($v:ident<$($a:lifetime,)? $($param:ident$(: $bound:path)?),*>) => {
+        impl<$($a,)? $($param$(: $bound)?),*> std::ops::Index<<Self as View>::I> for $v<$($a,)? $($param),*> where
+            Self: $crate::MemoryView,
+        {
+            type Output = <Self as View>::T;
+            fn index(&self, index: <Self as View>::I) -> &Self::Output { self.at_ref(index) }
+        }
+
+        impl<$($a,)? $($param$(: $bound)?),*> std::ops::IndexMut<<Self as View>::I> for $v<$($a,)? $($param),*> where
+            Self: $crate::MemoryView,
+        {
+            fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output { self.at_mut(index) }
+        }
     };
 }
