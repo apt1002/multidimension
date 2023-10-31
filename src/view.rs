@@ -138,14 +138,41 @@ pub trait View: Sized {
         A::new_view(self.size(), |buffer| { self.each(|t| buffer.push(t)); })
     }
 
+    /// Creates a `View` that represents this nested `View`.
+    ///
+    /// [`Self::T`] must implement `View` and must have a static size. If
+    /// `Self` is indexed by `Foo` and `Self::T` is indexed by `Bar` then the
+    /// result will be indexed by `(Foo, Bar)`.
+    ///
+    /// `Self` must implement `MemoryView`. Otherwise, this method would be too
+    /// expensive, and you should instead call `nested_collect()` to store all
+    /// its elements into some kind of collection.
+    ///
+    /// ```
+    /// use multidimension::{Index, View, Scalar, Array};
+    /// let mut a = Array::new(3, [
+    ///     Scalar("apple"), Scalar("body"), Scalar("crane"),
+    /// ]);
+    /// a.nested()[(1, ())] = "BODY"; // FIXME: `a` is consumed!
+    /// ```
+    fn nested(self) -> Nested<Self> where
+        Self: MemoryView,
+        Self::T: View,
+        <Self::T as View>::I: Index<Size=()>,
+    {
+        Nested(self)
+    }
+
     /// Materialises this nested `View` into a collection of type `A`, e.g. an
     /// [`Array`].
     ///
     /// [`Self::T`] must implement `View`. If `Self` is indexed by `Foo` and
     /// `Self::T` is indexed by `Bar` then `A` will be indexed by `(Foo, Bar`).
     ///
-    /// This method guarantees to call [`self.at()`] exactly once for each
-    /// index.
+    /// Unlike `self.nested().collect()`, this method guarantees to call
+    /// [`self.at()`] exactly once for each index, does not require `Self` to
+    /// implement `MemoryView`, and does not require `size` to be `()`. When
+    /// both are possible, they produce the same result.
     ///
     /// # Panics
     ///
@@ -660,7 +687,7 @@ macro_rules! impl_memoryview {
         $($a: lifetime,)?
         $($param:ident$(: $bound:path)?),*
     > where
-        $inner:ident: MemoryView,
+        $inner:ty: MemoryView,
         $($where_type:ty: $where_bound:path),*
     {
         |$self:ident, $index:ident| ($collection_expr:expr)[$index_expr:expr]
@@ -737,6 +764,33 @@ impl<'a, V: MemoryView> View for ViewRef<'a, V> {
 }
 
 impl_ops_for_view!(ViewRef<'a, V>);
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::view_ref()`].
+pub struct Nested<V>(V);
+
+impl<V: MemoryView> View for Nested<V> where
+    V::T: View,
+    <V::T as View>::I: Index<Size=()>,
+{
+    type I = (V::I, <V::T as View>::I);
+    type T = <V::T as View>::T;
+    #[inline(always)]
+    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), ()) }
+    #[inline(always)]
+    fn at(&self, index: Self::I) -> Self::T { self.0[index.0].at(index.1) }
+}
+
+impl_memoryview!(Nested<V: MemoryView> where
+    V::T: MemoryView,
+    V::T: View,
+    <V::T as View>::I: Index<Size=()>
+{
+    |self_, index| (self_.0[index.0])[index.1]
+});
+
+impl_ops_for_view!(Nested<V>);
 
 // ----------------------------------------------------------------------------
 
@@ -1323,7 +1377,7 @@ impl_ops_for_view!(Columns<V, I, J>);
 // ----------------------------------------------------------------------------
 
 /// A 0-dimensional [`View`].
-#[derive(Debug, Copy, Clone)]
+#[derive(Default, Debug, Copy, Clone, Hash, PartialEq, Eq)]
 #[repr(transparent)]
 pub struct Scalar<T: Clone>(pub T);
 
