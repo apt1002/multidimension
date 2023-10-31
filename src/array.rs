@@ -60,10 +60,6 @@ impl<I: Index, T> Array<I, T> {
     {
         Array {size: J::Size::from_iso(self.size), items: self.items}
     }
-
-    // TODO: Replace with `View::view_ref()` and `View::view_mut()`.
-    /// Returns a `View` that borrows the elements of `Self`.
-    pub fn view(&self) -> ArrayView<I, T> { ArrayView(self) }
 }
 
 impl<I: Index, T> std::convert::AsRef<[T]> for Array<I, T> {
@@ -122,20 +118,4 @@ impl<I: Index, T: Clone> super::NewView for Array<I, T> {
         callback(&mut buffer);
         Self::new_inner(size, buffer.into())
     }
-}
-
-// ----------------------------------------------------------------------------
-
-// TODO: Delete.
-pub struct ArrayView<'a, I: Index, T>(&'a Array<I, T>);
-
-impl<'a, I: Index, T: Clone> View for ArrayView<'a, I, T> {
-    type I = I;
-    type T = &'a T;
-    #[inline(always)]
-    fn size(&self) -> I::Size { self.0.size() }
-    #[inline(always)]
-    fn len(&self) -> usize { self.0.len() }
-    #[inline(always)]
-    fn at(&self, index: I) -> &'a T { &self.0[index] }
 }

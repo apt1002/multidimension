@@ -111,6 +111,13 @@ pub trait View: Sized {
     /// Compute the element at `index`.
     fn at(&self, index: Self::I) -> Self::T;
 
+    /// Creates a `View` whose elements borrow the elements of this `View`.
+    fn view_ref<'a>(&'a self) -> ViewRef<'a, Self> where
+        Self: MemoryView,
+    {
+        ViewRef(self)
+    }
+
     /// Materialises this `View` into a collection of type `A`, e.g. an
     /// [`Array`].
     ///
@@ -714,6 +721,22 @@ macro_rules! impl_memoryview {
         {}
     }
 }
+
+// ----------------------------------------------------------------------------
+
+/// The return type of [`View::view_ref()`].
+pub struct ViewRef<'a, V>(&'a V);
+
+impl<'a, V: MemoryView> View for ViewRef<'a, V> {
+    type I = V::I;
+    type T = &'a V::T;
+    #[inline(always)]
+    fn size(&self) -> <Self::I as Index>::Size { self.0.size() }
+    #[inline(always)]
+    fn at(&self, index: Self::I) -> Self::T { &self.0[index] }
+}
+
+impl_ops_for_view!(ViewRef<'a, V>);
 
 // ----------------------------------------------------------------------------
 
