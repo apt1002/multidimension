@@ -843,7 +843,52 @@ impl<V: View, W: View<T=V::T>, I: Index, J: Index> View for Concat<V, W, I, J> w
     }
 }
 
-// TODO: Implement `MemoryView`.
+impl<V: View, W: View<T=V::T>, I: Index, J: Index> std::ops::Index<<Self as View>::I> for Concat<V, W, I, J> where
+    V: MemoryView,
+    W: MemoryView,
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+    W::I: Isomorphic<(I, usize, J)>,
+    <W::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+{
+    type Output = <Self as View>::T;
+
+    fn index(&self, index: <Self as View>::I) -> &Self::Output {
+        let (i, index, j) = index;
+        if index < self.2 {
+            &self.0[Isomorphic::from_iso((i, index, j))]
+        } else {
+            &self.1[Isomorphic::from_iso((i, index - self.2, j))]
+        }
+    }
+}
+
+impl<V: View, W: View<T=V::T>, I: Index, J: Index> std::ops::IndexMut<<Self as View>::I> for Concat<V, W, I, J> where
+    V: MemoryView,
+    W: MemoryView,
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+    W::I: Isomorphic<(I, usize, J)>,
+    <W::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+{
+    fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output {
+        let (i, index, j) = index;
+        if index < self.2 {
+            &mut self.0[Isomorphic::from_iso((i, index, j))]
+        } else {
+            &mut self.1[Isomorphic::from_iso((i, index - self.2, j))]
+        }
+    }
+}
+
+impl<V: View, W: View<T=V::T>, I: Index, J: Index> MemoryView for Concat<V, W, I, J> where
+    V: MemoryView,
+    W: MemoryView,
+    V::I: Isomorphic<(I, usize, J)>,
+    <V::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+    W::I: Isomorphic<(I, usize, J)>,
+    <W::I as Index>::Size: Isomorphic<(I::Size, usize, J::Size)>,
+{}
 
 impl_ops_for_view!(Concat<V, W, I, J>);
 
