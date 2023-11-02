@@ -1,6 +1,6 @@
 use std::fmt::{Debug};
 use std::marker::{PhantomData};
-use std::ops::{Deref};
+use std::ops::{Deref, DerefMut};
 
 use super::{Isomorphic, Coat as _, Index, Broadcast, Binary, impl_ops_for_view, impl_ops_for_memoryview};
 
@@ -112,7 +112,7 @@ pub trait View: Sized {
     fn at(&self, index: Self::I) -> Self::T;
 
     /// Creates a `View` whose elements borrow the elements of this `View`.
-    fn view_ref<'a>(&'a self) -> ViewRef<'a, Self> where
+    fn view_ref(&self) -> ViewRef<Self> where
         Self: MemoryView,
     {
         ViewRef(self)
@@ -149,11 +149,11 @@ pub trait View: Sized {
     /// its elements into some kind of collection.
     ///
     /// ```
-    /// use multidimension::{Index, View, Scalar, Array};
+    /// use multidimension::{Index, View, MemoryView, Scalar, Array};
     /// let mut a = Array::new(3, [
     ///     Scalar("apple"), Scalar("body"), Scalar("crane"),
     /// ]);
-    /// a.nested()[(1, ())] = "BODY"; // FIXME: `a` is consumed!
+    /// (&mut a).nested()[(1, ())] = "BODY";
     /// ```
     fn nested(self) -> Nested<Self> where
         Self: MemoryView,
@@ -681,14 +681,12 @@ pub trait MemoryView: View {
     fn at_mut(&mut self, index: Self::I) -> &mut Self::T;
 }
 
-/* WIP
-impl<V: MemoryView, T: DerefMut<Target=V>> MemoryView for T {
+impl<T: DerefMut> MemoryView for T where <T as Deref>::Target: MemoryView {
     #[inline(always)]
-    fn at_ref(&self, index: Self::I) -> &Self::T { V::at_ref(self, index) }
+    fn at_ref(&self, index: Self::I) -> &Self::T { (**self).at_ref(index) }
     #[inline(always)]
-    fn at_mut(&mut self, index: Self::I) -> &mut Self::T { V::at_mut(self, index) }
+    fn at_mut(&mut self, index: Self::I) -> &mut Self::T { (**self).at_mut(index) }
 }
-*/
 
 /// A helper macro for implementing [`MemoryView`].
 ///
