@@ -210,10 +210,10 @@ macro_rules! impl_ops_for_view {
 // ----------------------------------------------------------------------------
 
 /// A helper macro for implementing [`std::ops::Index`] and
-/// [`std::ops::IndexMut`] in terms of [`MemoryView`].
+/// [`std::ops::IndexMut`] in terms of [`View`] and [`ViewMut`].
 ///
 /// ```
-/// use multidimension::{Index, View, MemoryView, impl_ops_for_memoryview};
+/// use multidimension::{Index, View, ViewRef, ViewMut, impl_ops_for_memoryview};
 ///
 /// pub struct VecView<T: Clone>(Vec<T>);
 ///
@@ -224,8 +224,11 @@ macro_rules! impl_ops_for_view {
 ///     fn at(&self, index: usize) -> T { self.0[index].clone() }
 /// }
 ///
-/// impl<T: Clone> MemoryView for VecView<T> {
+/// impl<T: Clone> ViewRef for VecView<T> {
 ///     fn at_ref(&self, index: Self::I) -> &Self::T { &self.0[index] }
+/// }
+///
+/// impl<T: Clone> ViewMut for VecView<T> {
 ///     fn at_mut(&mut self, index: Self::I) -> &mut Self::T { &mut self.0[index] }
 /// }
 ///
@@ -235,14 +238,14 @@ macro_rules! impl_ops_for_view {
 macro_rules! impl_ops_for_memoryview {
     ($v:ident<$($a:lifetime,)? $($param:ident$(: $bound:path)?),*>) => {
         impl<$($a,)? $($param$(: $bound)?),*> std::ops::Index<<Self as View>::I> for $v<$($a,)? $($param),*> where
-            Self: $crate::MemoryView,
+            Self: $crate::ViewRef,
         {
             type Output = <Self as View>::T;
             fn index(&self, index: <Self as View>::I) -> &Self::Output { self.at_ref(index) }
         }
 
         impl<$($a,)? $($param$(: $bound)?),*> std::ops::IndexMut<<Self as View>::I> for $v<$($a,)? $($param),*> where
-            Self: $crate::MemoryView,
+            Self: $crate::ViewMut,
         {
             fn index_mut(&mut self, index: <Self as View>::I) -> &mut Self::Output { self.at_mut(index) }
         }

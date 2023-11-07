@@ -1,4 +1,4 @@
-use super::{Isomorphic, Size, Index, impl_ops_for_view, View, MemoryView, impl_ops_for_memoryview};
+use super::{Isomorphic, Size, Index, impl_ops_for_view, View, ViewRef, ViewMut, impl_ops_for_memoryview};
 
 /// A dense array of `T`s indexed by `I`.
 #[derive(Debug, Clone)]
@@ -81,9 +81,12 @@ impl<I: Index, T: Clone> View for Array<I, T> {
     fn at(&self, index: I) -> T { self[index].clone() }
 }
 
-impl<I: Index, T: Clone> MemoryView for Array<I, T> {
+impl<I: Index, T: Clone> ViewRef for Array<I, T> {
     #[inline(always)]
     fn at_ref(&self, index: Self::I) -> &Self::T { &self.items[index.to_usize(self.size)] }
+}
+
+impl<I: Index, T: Clone> ViewMut for Array<I, T> {
     #[inline(always)]
     fn at_mut(&mut self, index: Self::I) -> &mut Self::T { &mut self.items[index.to_usize(self.size)] }
 }
