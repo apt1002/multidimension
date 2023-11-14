@@ -173,7 +173,7 @@ pub trait View: Sized {
     fn nested(self) -> Nested<Self> where
         Self: ViewRef,
         Self::T: View,
-        <Self::T as View>::I: Index<Size=()>,
+        <<Self::T as View>::I as Index>::Size: Isomorphic<()>,
     {
         Nested(self)
     }
@@ -789,12 +789,12 @@ pub struct Nested<V>(V);
 
 impl<V: ViewRef> View for Nested<V> where
     V::T: View,
-    <V::T as View>::I: Index<Size=()>,
+    <<V::T as View>::I as Index>::Size: Isomorphic<()>,
 {
     type I = (V::I, <V::T as View>::I);
     type T = <V::T as View>::T;
     #[inline(always)]
-    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), ()) }
+    fn size(&self) -> <Self::I as Index>::Size { (self.0.size(), Isomorphic::from_iso(())) }
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { self.0.at_ref(index.0).at(index.1) }
 }
