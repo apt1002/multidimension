@@ -27,7 +27,9 @@ and a safe, modular way of writing new operations if necessary.
 
 More can be found in [the docs](https://docs.rs/multidimension/).
 
-```
+Generate a diagonal matrix:
+
+```rust
 let a: Array<_, _> = usize::all(3).map(|x| x + 10).diagonal().collect();
 assert_eq!(a.as_ref(), [
     10, 0, 0,
@@ -36,14 +38,18 @@ assert_eq!(a.as_ref(), [
 ]);
 ```
 
-```
+Use one vector to select from another:
+
+```rust
 let a: Array<bool, usize> = Array::new((), [2, 1]);
 let b: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
 let ab: Array<bool, &str> = a.compose(b).collect();
 assert_eq!(ab.as_ref(), ["crane", "body"])
 ```
 
-```
+Zip two arrays:
+
+```rust
 let a: Array<usize, usize> = usize::all(3).collect();
 let b: Array<usize, &str> = Array::new(3, ["apple", "body", "crane"]);
 let ab: Array<usize, (usize, &str)> = a.zip(b).collect();
@@ -54,7 +60,9 @@ assert_eq!(ab.as_ref(), [
 ]);
 ```
 
-```
+Transpose a matrix of pairs:
+
+```rust
 let a: Array<_, _> = <(usize, usize)>::all((3, 2)).collect();
 assert_eq!(a.as_ref(), [
     (0, 0), (0, 1),
