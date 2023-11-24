@@ -34,6 +34,9 @@ impl<S: Size> Size for Coated<S> {}
 /// and best way to achieve this for a non-tuple type is to implement
 /// [`NonTuple`].
 ///
+/// The default implementation of [`each()`] in terms of [`from_usize()`] is
+/// slow. You can probably provide a better one.
+///
 /// [`Array`]: super::Array
 /// [`NonTuple`]: super::NonTuple
 pub trait Index: Debug + Copy + PartialEq {
