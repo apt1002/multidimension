@@ -1,4 +1,4 @@
-use std::fmt::{Debug};
+use std::{fmt::{Debug}, marker::PhantomData};
 
 use super::{div_mod, Coated, Isomorphic};
 
@@ -66,8 +66,32 @@ pub trait Index: Debug + Copy + PartialEq {
         for i in 0..Self::length(size) { f(Self::from_usize(size, i).1); }
     }
 
+    fn iter(size: Self::Size) -> Iter<Self::Size, Self> {
+        let range_iter = 0..Self::length(size);
+        Iter::<Self::Size, Self> { range_iter, size, index: PhantomData, }
+    }
+
     /// Returns a View of the specified size that maps every `Self` to itself.
     fn all(size: impl Isomorphic<Self::Size>) -> All<Self> { All(size.to_iso()) }
+}
+
+pub struct Iter<S, I> {
+    range_iter: std::ops::Range<usize>,
+    size: S,
+    index: PhantomData<I>,
+}
+impl<S, I> Iterator for Iter<S, I>
+where
+    S: Size,
+    I: Index<Size = S>,
+{
+    type Item = I;
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(i) = self.range_iter.next() else {
+            return None;
+        };
+        Some(I::from_usize(self.size, i).1)
+    }
 }
 
 // `impl Index for ()` is provided by implementing `StaticIndex`.

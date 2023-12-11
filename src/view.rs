@@ -251,6 +251,11 @@ pub trait View: Sized {
         Self::I::each(self.size(), |i| f(self.at(i)));
     }
 
+    fn into_iter(self) -> IntoIter<<<Self as View>::I as Index>::Size, <Self as View>::I, Self> {
+        let index_iter = Self::I::iter(self.size());
+        IntoIter { index_iter, view: self }
+    }
+
     /// Creates a `View` with the same `Index` type as `self` such that `at(i)`
     /// returns `(i, self.at(i))`.
     ///
@@ -659,6 +664,25 @@ impl<V: View, T: Deref<Target=V>> View for T {
     fn size(&self) -> <Self::I as Index>::Size { V::size(self) }
     #[inline(always)]
     fn at(&self, index: Self::I) -> Self::T { V::at(self, index) }
+}
+
+pub struct IntoIter<S, I, V> {
+    index_iter: crate::index::Iter<S, I>,
+    view: V,
+}
+impl<S, I, V> Iterator for IntoIter<S, I, V>
+where
+    S: crate::Size,
+    I: Index<Size = S>,
+    V: View<I = I>,
+{
+    type Item = V::T;
+    fn next(&mut self) -> Option<Self::Item> {
+        let Some(i) = self.index_iter.next() else {
+            return None;
+        };
+        Some(self.view.at(i))
+    }
 }
 
 // ----------------------------------------------------------------------------
